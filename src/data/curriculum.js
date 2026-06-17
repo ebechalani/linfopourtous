@@ -361,6 +361,57 @@ export const CHAPTERS = [
         ] },
     ],
   },
+
+  {
+    id: 'ch7',
+    emoji: '🤖',
+    color: '#0284c7',
+    title: { fr: 'Robotique avec mTiny', en: 'Robotics with mTiny' },
+    tool: 'mTiny',
+    sessions: [
+      {
+        id: 'ch7-s1',
+        title: { fr: 'Je découvre le robot mTiny', en: 'Discovering the mTiny robot' },
+        objectives: { fr: ['Connaître le robot et son crayon-contrôleur', 'Comprendre les cartes de commande', 'Faire avancer le robot pas à pas'],
+          en: ['Know the robot and its tap pencil', 'Understand the command cards', 'Move the robot step by step'] },
+        activities: [
+          { id: 'tot', type: 'mtiny', age: 3, emoji: '🤖', title: { fr: 'Le robot avance', en: 'The robot moves' },
+            desc: { fr: 'Touche le bouton pour faire avancer le robot jusqu’au cadeau.', en: 'Tap the button to move the robot to the gift.' },
+            dog: { level: 1, mode: 'tap' } },
+          { id: 'a', type: 'info', emoji: '🧰', title: { fr: 'Les parties de mTiny', en: 'The parts of mTiny' },
+            desc: { fr: 'Le robot 🤖, le crayon-contrôleur ✏️, les cartes de commande 🃏 et le tapis 🗺️.', en: 'The robot 🤖, the tap pencil ✏️, the command cards 🃏 and the map 🗺️.' } },
+          { id: 'b', type: 'mtiny', emoji: '🤖', title: { fr: 'Avance jusqu’au cadeau', en: 'Move to the gift' },
+            desc: { fr: 'Range les cartes « Avancer » pour atteindre le cadeau.', en: 'Line up “Forward” cards to reach the gift.' },
+            dog: { level: 2 } },
+        ],
+      },
+      {
+        id: 'ch7-s2',
+        title: { fr: 'Je fais tourner le robot', en: 'Turning the robot' },
+        objectives: { fr: ['Tourner à gauche et à droite', 'Comprendre l’orientation du robot', 'Construire un chemin avec des virages'],
+          en: ['Turn left and right', 'Understand the robot’s orientation', 'Build a path with turns'] },
+        activities: [
+          { id: 'a', type: 'mtiny', emoji: '↪️', title: { fr: 'Tourne puis avance', en: 'Turn then move' },
+            desc: { fr: 'Le robot regarde en haut : tourne-le puis fais-le avancer.', en: 'The robot faces up: turn it then move forward.' },
+            dog: { level: 3 } },
+          { id: 'b', type: 'mtiny', emoji: '🤖', title: { fr: 'Le chemin en L', en: 'The L-shaped path' },
+            desc: { fr: 'Avance, tourne, avance pour atteindre le cadeau.', en: 'Move, turn, move to reach the gift.' },
+            dog: { level: 4 } },
+        ],
+      },
+      {
+        id: 'ch7-s3',
+        title: { fr: 'Je programme une mission', en: 'Programming a mission' },
+        objectives: { fr: ['Combiner avancer et tourner', 'Éviter les obstacles', 'Atteindre la cible'],
+          en: ['Combine moving and turning', 'Avoid obstacles', 'Reach the target'] },
+        activities: [
+          { id: 'a', type: 'mtiny', emoji: '🗺️', title: { fr: 'Le grand voyage', en: 'The big journey' },
+            desc: { fr: 'Avance et tourne pour traverser tout le tapis jusqu’au cadeau.', en: 'Move and turn to cross the whole map to the gift.' },
+            dog: { level: 5 } },
+        ],
+      },
+    ],
+  },
 ]
 
 export function findChapter(id) {

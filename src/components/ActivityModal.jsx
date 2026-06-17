@@ -5,6 +5,7 @@ import ComingSoon from './ComingSoon.jsx'
 import DogGrid from '../games/DogGrid.jsx'
 import ArrowPick from '../games/ArrowPick.jsx'
 import TinyGame from '../games/TinyGame.jsx'
+import MTinyRobot from '../games/MTinyRobot.jsx'
 import MouseGame from '../games/MouseGame.jsx'
 import KeyboardGame from '../games/KeyboardGame.jsx'
 import PaintStudio from '../games/PaintStudio.jsx'
@@ -46,7 +47,9 @@ export default function ActivityModal({ activity, onClose }) {
           </button>
         </div>
 
-        {activity.type === 'tiny' ? (
+        {activity.type === 'mtiny' ? (
+          <MTinyRobot config={activity.dog} />
+        ) : activity.type === 'tiny' ? (
           <TinyGame variant={activity.variant} config={activity.tiny} />
         ) : activity.type === 'dog-grid' ? (
           <DogGrid config={activity.dog} />

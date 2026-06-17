@@ -18,5 +18,9 @@ export function levelOf(a) {
   if (a.age === 3 || a.type === 'tiny') return 'tot'
   if (a.type === 'arrow-pick') return 'beg'
   if (a.type === 'dog-grid' && (a.dog?.mode === 'direct' || a.dog?.hint)) return 'beg'
+  if (a.type === 'mtiny') {
+    if (a.dog?.mode === 'tap') return 'tot'
+    return (a.dog?.level || 1) <= 3 ? 'beg' : 'pro'
+  }
   return 'pro'
 }
