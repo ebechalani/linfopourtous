@@ -18,21 +18,22 @@ const HEADINGS = [
   { dr: 0, dc: -1, deg: 270 },
 ]
 
+// Cartes façon set mTiny : tuiles blanches à bord coloré + grosse flèche.
 const CARDS = {
-  forward: { glyph: '⏫', color: 'bg-emerald-500', label: { fr: 'Avancer', en: 'Forward' } },
-  back: { glyph: '⏬', color: 'bg-teal-500', label: { fr: 'Reculer', en: 'Backward' } },
-  left: { glyph: '↩️', color: 'bg-indigo-500', label: { fr: 'Tourner à gauche', en: 'Turn left' } },
-  right: { glyph: '↪️', color: 'bg-violet-500', label: { fr: 'Tourner à droite', en: 'Turn right' } },
+  forward: { symbol: '↑', color: '#10b981', label: { fr: 'Avancer', en: 'Forward' } },
+  back: { symbol: '↓', color: '#14b8a6', label: { fr: 'Reculer', en: 'Backward' } },
+  left: { symbol: '↰', color: '#6366f1', label: { fr: 'Tourner à gauche', en: 'Turn left' } },
+  right: { symbol: '↱', color: '#8b5cf6', label: { fr: 'Tourner à droite', en: 'Turn right' } },
 }
 
-// Niveaux. start = [ligne, colonne], dir = orientation de départ (0=N,1=E,2=S,3=O),
-// goal, walls. Conçus pour que TOURNER soit nécessaire dès le niveau 3.
+// Niveaux. Le robot commence TOUJOURS orienté vers le haut (dir = 0 = Nord), donc
+// la flèche d'orientation part vers le haut. Tourner devient nécessaire dès le 3.
 const LEVELS = {
-  1: { cols: 4, rows: 1, start: [0, 0], dir: 1, goal: [0, 3], walls: [] },   // face Est : avancer ×3
-  2: { cols: 4, rows: 4, start: [3, 0], dir: 1, goal: [3, 3], walls: [] },   // face Est : avancer ×3
-  3: { cols: 4, rows: 4, start: [3, 0], dir: 1, goal: [0, 0], walls: [] },   // tourner à gauche puis avancer ×3
-  4: { cols: 5, rows: 5, start: [4, 0], dir: 1, goal: [0, 4], walls: [] },   // avancer ×4, tourner, avancer ×4
-  5: { cols: 5, rows: 5, start: [4, 4], dir: 3, goal: [0, 0], walls: [[2, 2]] }, // chemin en L (sens inverse)
+  1: { cols: 3, rows: 4, start: [3, 1], dir: 0, goal: [0, 1], walls: [] },   // avancer ×3 vers le haut
+  2: { cols: 4, rows: 4, start: [3, 0], dir: 0, goal: [0, 0], walls: [] },   // avancer ×3 vers le haut
+  3: { cols: 4, rows: 4, start: [3, 0], dir: 0, goal: [3, 3], walls: [] },   // tourner à droite puis avancer ×3
+  4: { cols: 5, rows: 5, start: [4, 0], dir: 0, goal: [0, 4], walls: [] },   // avancer ×4, tourner, avancer ×4
+  5: { cols: 5, rows: 5, start: [4, 4], dir: 0, goal: [0, 0], walls: [[2, 2]] }, // chemin en L
 }
 
 const same = (a, b) => a[0] === b[0] && a[1] === b[1]
@@ -132,11 +133,14 @@ export default function MTinyRobot({ config = {} }) {
                 {wall && '🧱'}
                 {goal && !here && goalGlyph}
                 {here && (
-                  <span className="relative">
-                    <span>{status === 'fail' ? '😵' : '🤖'}</span>
-                    {/* petite flèche d'orientation */}
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-sm transition-transform duration-300"
-                      style={{ transform: `rotate(${HEADINGS[dir].deg}deg)` }}>🔺</span>
+                  <span className="relative inline-flex items-center justify-center">
+                    {/* flèche d'orientation : un rond pivote autour du robot, sa
+                        pointe indique le devant (vers le haut au départ) */}
+                    <span className="absolute inset-[-10px] transition-transform duration-300"
+                      style={{ transform: `rotate(${HEADINGS[dir].deg}deg)` }}>
+                      <span className="absolute left-1/2 top-[-6px] -translate-x-1/2 text-base font-black leading-none text-rose-500 drop-shadow">▲</span>
+                    </span>
+                    <span>{status === 'fail' ? '😵' : '🐼'}</span>
                   </span>
                 )}
               </div>
@@ -156,7 +160,7 @@ export default function MTinyRobot({ config = {} }) {
 
       {tapMode ? (
         <button onClick={tapForward} className="flex items-center gap-2 rounded-full bg-emerald-500 px-10 py-4 text-2xl font-extrabold text-white shadow-lg transition hover:bg-emerald-600 active:scale-95">
-          ⏫ {t({ fr: 'Avancer', en: 'Forward' })}
+          <span className="text-3xl font-black leading-none">↑</span> {t({ fr: 'Avancer', en: 'Forward' })}
         </button>
       ) : (
         <>
@@ -165,18 +169,20 @@ export default function MTinyRobot({ config = {} }) {
             {program.length === 0 && <span className="text-3xl opacity-30">➕</span>}
             {program.map((k, i) => (
               <button key={i} onClick={() => removeAt(i)} disabled={running}
-                className={`flex h-12 w-12 items-center justify-center rounded-xl ${CARDS[k].color} text-2xl text-white shadow transition hover:opacity-80 active:scale-90`}
-                title={t(CARDS[k].label)}>{CARDS[k].glyph}</button>
+                className="flex h-12 w-12 items-center justify-center rounded-lg bg-white text-3xl font-black shadow ring-2 transition hover:opacity-70 active:scale-90"
+                style={{ color: CARDS[k].color, '--tw-ring-color': CARDS[k].color }}
+                title={t(CARDS[k].label)}>{CARDS[k].symbol}</button>
             ))}
           </div>
 
-          {/* Palette de cartes */}
-          <div className="flex flex-wrap justify-center gap-2">
+          {/* Palette de cartes (façon set mTiny) */}
+          <div className="flex flex-wrap justify-center gap-3">
             {palette.map(([key, card]) => (
               <button key={key} onClick={() => add(key)} disabled={running}
-                className={`flex h-16 w-20 flex-col items-center justify-center rounded-2xl ${card.color} text-white shadow-lg transition hover:scale-105 active:scale-90 disabled:opacity-40`}>
-                <span className="text-2xl">{card.glyph}</span>
-                <span className="text-[10px] font-bold leading-tight">{t(card.label)}</span>
+                className="flex h-24 w-20 flex-col items-center justify-center gap-1 rounded-2xl bg-white shadow-md ring-4 transition hover:scale-105 active:scale-90 disabled:opacity-40"
+                style={{ '--tw-ring-color': card.color }}>
+                <span className="text-4xl font-black leading-none" style={{ color: card.color }}>{card.symbol}</span>
+                <span className="px-1 text-center text-[10px] font-bold leading-tight text-stone-600">{t(card.label)}</span>
               </button>
             ))}
           </div>
