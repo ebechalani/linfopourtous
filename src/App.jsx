@@ -115,7 +115,7 @@ function ChapterView({ chapterId, onOpenActivity }) {
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {s.activities.map((a) => {
-                const playable = ['dog-grid', 'mouse', 'keyboard'].includes(a.type)
+                const playable = ['dog-grid', 'mouse', 'keyboard', 'paint'].includes(a.type)
                 return (
                   <button
                     key={a.id}

@@ -5,6 +5,7 @@ import ComingSoon from './ComingSoon.jsx'
 import DogGrid from '../games/DogGrid.jsx'
 import MouseGame from '../games/MouseGame.jsx'
 import KeyboardGame from '../games/KeyboardGame.jsx'
+import PaintStudio from '../games/PaintStudio.jsx'
 
 export default function ActivityModal({ activity, onClose }) {
   const { t } = useLang()
@@ -47,6 +48,8 @@ export default function ActivityModal({ activity, onClose }) {
           <MouseGame variant={activity.variant} config={activity} />
         ) : activity.type === 'keyboard' ? (
           <KeyboardGame variant={activity.variant} config={activity.kb} />
+        ) : activity.type === 'paint' ? (
+          <PaintStudio activity={activity} />
         ) : (
           <ComingSoon activity={activity} />
         )}
