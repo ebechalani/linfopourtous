@@ -20,6 +20,7 @@ export function levelOf(a) {
   if (a.type === 'dog-grid' && (a.dog?.mode === 'direct' || a.dog?.hint)) return 'beg'
   if (a.type === 'mtiny') {
     if (a.dog?.mode === 'tap') return 'tot'
+    if (a.dog?.mode === 'direct') return 'beg'
     return (a.dog?.level || 1) <= 3 ? 'beg' : 'pro'
   }
   return 'pro'

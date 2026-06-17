@@ -42,6 +42,7 @@ export default function MTinyRobot({ config = {} }) {
   const { t, lang } = useLang()
   const level = LEVELS[config.level] || LEVELS[1]
   const tapMode = config.mode === 'tap' // Novice : un seul bouton « Avancer »
+  const directMode = config.mode === 'direct' // chaque carte agit tout de suite
   const goalGlyph = config.goal || '🎁'
 
   const [program, setProgram] = useState([])
@@ -50,7 +51,9 @@ export default function MTinyRobot({ config = {} }) {
   const [running, setRunning] = useState(false)
   const [status, setStatus] = useState('idle')
   const timer = useRef(null)
-  const posRef = useRef(level.start) // suit la position pour les appuis rapides (mode tap)
+  // refs : suivent position + orientation pour les appuis rapides (modes tap / direct)
+  const posRef = useRef(level.start)
+  const dirRef = useRef(level.dir)
 
   useEffect(() => {
     reset()
@@ -61,6 +64,7 @@ export default function MTinyRobot({ config = {} }) {
   function reset() {
     clearInterval(timer.current)
     posRef.current = level.start
+    dirRef.current = level.dir
     setProgram([]); setPos(level.start); setDir(level.dir); setRunning(false); setStatus('idle')
   }
 
@@ -86,6 +90,18 @@ export default function MTinyRobot({ config = {} }) {
     if (!next) { sfx.fail(); return }
     posRef.current = next.p
     sfx.step(); setPos(next.p)
+    if (same(next.p, level.goal)) { setStatus('win'); sfx.win(); speak(t({ fr: 'Bravo !', en: 'Well done!' }), lang) }
+  }
+
+  // ── Mode direct : chaque carte agit tout de suite (comme une télécommande) ──
+  function stepDirect(card) {
+    if (status === 'win') return
+    const next = apply(card, posRef.current, dirRef.current)
+    if (!next) { sfx.fail(); return } // bloqué par un mur ou le bord
+    posRef.current = next.p
+    dirRef.current = next.h
+    setPos(next.p); setDir(next.h)
+    if (card === 'left' || card === 'right') sfx.tap(); else sfx.step()
     if (same(next.p, level.goal)) { setStatus('win'); sfx.win(); speak(t({ fr: 'Bravo !', en: 'Well done!' }), lang) }
   }
 
@@ -154,7 +170,11 @@ export default function MTinyRobot({ config = {} }) {
         {status === 'win' && <span className="text-green-600">{t({ fr: 'Bravo ! 🎉', en: 'Well done! 🎉' })}</span>}
         {status === 'fail' && <span className="text-rose-500">{t({ fr: 'Essaie encore !', en: 'Try again!' })}</span>}
         {status === 'idle' && !running && (
-          <span className="text-stone-400">{tapMode ? t({ fr: 'Touche pour avancer', en: 'Tap to move forward' }) : t({ fr: 'Range les cartes puis appuie sur Go', en: 'Line up the cards then press Go' })}</span>
+          <span className="text-stone-400">{
+            tapMode ? t({ fr: 'Touche pour avancer', en: 'Tap to move forward' })
+              : directMode ? t({ fr: 'Appuie sur une carte : le robot bouge tout de suite', en: 'Press a card: the robot moves right away' })
+                : t({ fr: 'Range les cartes puis appuie sur Go', en: 'Line up the cards then press Go' })
+          }</span>
         )}
       </div>
 
@@ -164,21 +184,23 @@ export default function MTinyRobot({ config = {} }) {
         </button>
       ) : (
         <>
-          {/* Suite de cartes */}
-          <div className="flex min-h-[60px] w-full max-w-xl flex-wrap items-center justify-center gap-2 rounded-2xl bg-sky-50 p-3 ring-2 ring-sky-200">
-            {program.length === 0 && <span className="text-3xl opacity-30">➕</span>}
-            {program.map((k, i) => (
-              <button key={i} onClick={() => removeAt(i)} disabled={running}
-                className="flex h-12 w-12 items-center justify-center rounded-lg bg-white text-3xl font-black shadow ring-2 transition hover:opacity-70 active:scale-90"
-                style={{ color: CARDS[k].color, '--tw-ring-color': CARDS[k].color }}
-                title={t(CARDS[k].label)}>{CARDS[k].symbol}</button>
-            ))}
-          </div>
+          {/* Suite de cartes (mode programme seulement) */}
+          {!directMode && (
+            <div className="flex min-h-[60px] w-full max-w-xl flex-wrap items-center justify-center gap-2 rounded-2xl bg-sky-50 p-3 ring-2 ring-sky-200">
+              {program.length === 0 && <span className="text-3xl opacity-30">➕</span>}
+              {program.map((k, i) => (
+                <button key={i} onClick={() => removeAt(i)} disabled={running}
+                  className="flex h-12 w-12 items-center justify-center rounded-lg bg-white text-3xl font-black shadow ring-2 transition hover:opacity-70 active:scale-90"
+                  style={{ color: CARDS[k].color, '--tw-ring-color': CARDS[k].color }}
+                  title={t(CARDS[k].label)}>{CARDS[k].symbol}</button>
+              ))}
+            </div>
+          )}
 
           {/* Palette de cartes (façon set mTiny) */}
           <div className="flex flex-wrap justify-center gap-3">
             {palette.map(([key, card]) => (
-              <button key={key} onClick={() => add(key)} disabled={running}
+              <button key={key} onClick={() => (directMode ? stepDirect(key) : add(key))} disabled={running}
                 className="flex h-24 w-20 flex-col items-center justify-center gap-1 rounded-2xl bg-white shadow-md ring-4 transition hover:scale-105 active:scale-90 disabled:opacity-40"
                 style={{ '--tw-ring-color': card.color }}>
                 <span className="text-4xl font-black leading-none" style={{ color: card.color }}>{card.symbol}</span>
@@ -188,10 +210,12 @@ export default function MTinyRobot({ config = {} }) {
           </div>
 
           <div className="flex gap-3">
-            <button onClick={run} disabled={running || program.length === 0}
-              className="rounded-full bg-green-500 px-8 py-3 text-2xl font-extrabold text-white shadow-lg transition hover:bg-green-600 active:scale-95 disabled:opacity-40">
-              ▶ {t({ fr: 'Go !', en: 'Go!' })}
-            </button>
+            {!directMode && (
+              <button onClick={run} disabled={running || program.length === 0}
+                className="rounded-full bg-green-500 px-8 py-3 text-2xl font-extrabold text-white shadow-lg transition hover:bg-green-600 active:scale-95 disabled:opacity-40">
+                ▶ {t({ fr: 'Go !', en: 'Go!' })}
+              </button>
+            )}
             <button onClick={reset} disabled={running}
               className="rounded-full bg-stone-200 px-6 py-3 text-xl font-bold text-stone-700 shadow transition hover:bg-stone-300 active:scale-95 disabled:opacity-40">
               ↺ {t({ fr: 'Recommencer', en: 'Reset' })}
