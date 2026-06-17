@@ -207,7 +207,8 @@ function ChapterView({ chapterId, onOpenActivity, done, markDone, onClearProgres
                       </div>
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         {acts.map((a) => {
-                          const playable = a.type !== 'info'
+                          const isUnplugged = a.type === 'unplugged'
+                          const playable = a.type !== 'info' && !isUnplugged
                           const key = `${s.id}:${a.id}`
                           const isDone = done.has(key)
                           return (
@@ -225,8 +226,8 @@ function ChapterView({ chapterId, onOpenActivity, done, markDone, onClearProgres
                                 </span>
                                 <span className="flex-1">
                                   <span className="block font-bold text-stone-800">{t(a.title)}</span>
-                                  <span className={`text-xs font-bold ${isDone ? 'text-green-600' : playable ? 'text-green-600' : 'text-stone-400'}`}>
-                                    {isDone ? `✓ ${t({ fr: 'fait', en: 'done' })}` : playable ? `▶ ${ui('play')}` : `👀 ${t({ fr: 'À découvrir', en: 'Discover' })}`}
+                                  <span className={`text-xs font-bold ${isDone ? 'text-green-600' : playable ? 'text-green-600' : isUnplugged ? 'text-lime-600' : 'text-stone-400'}`}>
+                                    {isDone ? `✓ ${t({ fr: 'fait', en: 'done' })}` : isUnplugged ? `📋 ${t({ fr: 'Fiche prof', en: 'Teacher sheet' })}` : playable ? `▶ ${ui('play')}` : `👀 ${t({ fr: 'À découvrir', en: 'Discover' })}`}
                                   </span>
                                 </span>
                               </button>

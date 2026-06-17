@@ -7,6 +7,7 @@ import ArrowPick from '../games/ArrowPick.jsx'
 import TinyGame from '../games/TinyGame.jsx'
 import MTinyRobot from '../games/MTinyRobot.jsx'
 import PartsCard from './PartsCard.jsx'
+import UnpluggedCard from './UnpluggedCard.jsx'
 import MouseGame from '../games/MouseGame.jsx'
 import KeyboardGame from '../games/KeyboardGame.jsx'
 import PaintStudio from '../games/PaintStudio.jsx'
@@ -48,7 +49,9 @@ export default function ActivityModal({ activity, onClose }) {
           </button>
         </div>
 
-        {activity.parts ? (
+        {activity.type === 'unplugged' ? (
+          <UnpluggedCard activity={activity} />
+        ) : activity.parts ? (
           <PartsCard parts={activity.parts} />
         ) : activity.type === 'mtiny' ? (
           <MTinyRobot config={activity.dog} />
