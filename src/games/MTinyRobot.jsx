@@ -40,6 +40,9 @@ const LEVELS = {
 
 const same = (a, b) => a[0] === b[0] && a[1] === b[1]
 
+// Défi : moins de cartes = plus d'étoiles (les boucles donnent peu de cartes).
+const starsFor = (cards) => (cards <= 3 ? 3 : cards <= 6 ? 2 : 1)
+
 export default function MTinyRobot({ config = {} }) {
   const { t, lang } = useLang()
   const level = LEVELS[config.level] || LEVELS[1]
@@ -171,9 +174,19 @@ export default function MTinyRobot({ config = {} }) {
         )}
       </div>
 
-      {/* État */}
-      <div className="h-7 text-center text-lg font-bold">
-        {status === 'win' && <span className="text-green-600">{t({ fr: 'Bravo ! 🎉', en: 'Well done! 🎉' })}</span>}
+      {/* État (+ étoiles défi en mode programme) */}
+      <div className="min-h-[2.5rem] text-center text-lg font-bold">
+        {status === 'win' && (
+          <div className="text-green-600">
+            {t({ fr: 'Bravo ! 🎉', en: 'Well done! 🎉' })}{!tapMode && !directMode && program.length > 0 && <> {'⭐'.repeat(starsFor(program.length))}</>}
+            {!tapMode && !directMode && program.length > 0 && (
+              <div className="text-xs font-bold text-stone-400">
+                {program.length} {t({ fr: program.length > 1 ? 'cartes' : 'carte', en: 'cards' })}{repeat > 1 ? ` × ${repeat}` : ''}
+                {starsFor(program.length) < 3 ? ` · ${t({ fr: 'essaie avec moins !', en: 'try with fewer!' })}` : ''}
+              </div>
+            )}
+          </div>
+        )}
         {status === 'fail' && <span className="text-rose-500">{t({ fr: 'Essaie encore !', en: 'Try again!' })}</span>}
         {status === 'idle' && !running && (
           <span className="text-stone-400">{

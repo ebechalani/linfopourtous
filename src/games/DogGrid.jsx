@@ -33,6 +33,9 @@ const LEVELS = {
 
 const same = (a, b) => a[0] === b[0] && a[1] === b[1]
 
+// Défi : moins de cartes = plus d'étoiles (les boucles donnent peu de cartes).
+const starsFor = (cards) => (cards <= 3 ? 3 : cards <= 6 ? 2 : 1)
+
 // Chemin simple en L (vertical puis horizontal) pour les empreintes du mode guidé.
 function hintPath(start, goal) {
   const cells = []
@@ -174,12 +177,22 @@ export default function DogGrid({ config = {} }) {
         )}
       </div>
 
-      {/* Bandeau d'état */}
-      <div className="h-8 text-center text-xl font-bold">
-        {status === 'win' && <span className="text-green-600">{ui('win')}</span>}
-        {status === 'fail' && <span className="text-rose-500">{ui('tryAgain')}</span>}
+      {/* Bandeau d'état (+ étoiles défi en mode programme) */}
+      <div className="min-h-[2.5rem] text-center font-bold">
+        {status === 'win' && (
+          <div className="text-xl text-green-600">
+            {ui('win')}{!direct && program.length > 0 && <> {'⭐'.repeat(starsFor(program.length))}</>}
+            {!direct && program.length > 0 && (
+              <div className="text-xs font-bold text-stone-400">
+                {program.length} {t({ fr: program.length > 1 ? 'cartes' : 'carte', en: 'cards' })}{repeat > 1 ? ` × ${repeat}` : ''}
+                {starsFor(program.length) < 3 ? ` · ${t({ fr: 'essaie avec moins !', en: 'try with fewer!' })}` : ''}
+              </div>
+            )}
+          </div>
+        )}
+        {status === 'fail' && <span className="text-xl text-rose-500">{ui('tryAgain')}</span>}
         {status === 'idle' && !running && (
-          <span className="text-stone-400">{direct ? t({ fr: 'Appuie sur une flèche', en: 'Press an arrow' }) : ui('buildProgram')}</span>
+          <span className="text-xl text-stone-400">{direct ? t({ fr: 'Appuie sur une flèche', en: 'Press an arrow' }) : ui('buildProgram')}</span>
         )}
       </div>
 
