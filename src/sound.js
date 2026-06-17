@@ -3,11 +3,11 @@
 
 // Coupe-son global (mémorisé), pour la classe. sfx + speak le respectent.
 let muted = false
-try { muted = localStorage.getItem('carmel-muted') === '1' } catch { /* ignore */ }
+try { muted = localStorage.getItem('lipt-muted') === '1' } catch { /* ignore */ }
 export function isMuted() { return muted }
 export function setMuted(v) {
   muted = !!v
-  try { localStorage.setItem('carmel-muted', muted ? '1' : '0') } catch { /* ignore */ }
+  try { localStorage.setItem('lipt-muted', muted ? '1' : '0') } catch { /* ignore */ }
   if (muted && typeof window !== 'undefined' && window.speechSynthesis) window.speechSynthesis.cancel()
 }
 

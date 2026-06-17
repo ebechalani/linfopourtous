@@ -2,7 +2,7 @@
 // Une activité « faite » est repérée par la clé `${session.id}:${activity.id}`
 // (ex. "ch1-s1:a"), unique car les identifiants de séance le sont.
 
-const KEY = 'carmel-progress'
+const KEY = 'lipt-progress'
 
 export function loadDone() {
   try {

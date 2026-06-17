@@ -5,7 +5,7 @@ const LangContext = createContext(null)
 // Toutes les chaînes d'interface (hors données du programme, qui portent leurs
 // propres {fr,en}). Ajoute une clé ici quand tu ajoutes du texte d'UI.
 export const UI = {
-  appTitle: { fr: 'Numérique au Carmel', en: 'Digital at Carmel' },
+  appTitle: { fr: 'L’info pour tous', en: 'L’info pour tous' },
   appSubtitle: { fr: 'Maternelle · 3–5 ans', en: 'Kindergarten · ages 3–5' },
   chapters: { fr: 'Chapitres', en: 'Chapters' },
   chapter: { fr: 'Chapitre', en: 'Chapter' },

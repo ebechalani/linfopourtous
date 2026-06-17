@@ -11,6 +11,8 @@ import { sfx, speak } from '../sound.js'
 //   count       : compter des objets puis taper le nombre
 
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
+// Disposition d'un vrai clavier QWERTY, en 3 rangées.
+const QWERTY = ['QWERTYUIOP'.split(''), 'ASDFGHJKL'.split(''), 'ZXCVBNM'.split('')]
 const DICE = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅']
 const WORDS = ['CHAT', 'SOLEIL', 'MAISON', 'BALLON', 'FLEUR']
 
@@ -27,16 +29,20 @@ function Banner({ won, onReplay }) {
   )
 }
 
-// Clavier de lettres à l'écran.
+// Clavier de lettres à l'écran, disposé comme un vrai clavier QWERTY.
 function LetterKeys({ onKey, highlight }) {
   return (
-    <div className="mt-4 flex max-w-2xl flex-wrap justify-center gap-1.5">
-      {LETTERS.map((l) => (
-        <button
-          key={l}
-          onClick={() => onKey(l)}
-          className={`h-11 w-11 rounded-lg text-lg font-bold shadow transition active:scale-90 ${highlight === l ? 'bg-green-400 text-white ring-2 ring-green-200' : 'bg-white text-stone-700 hover:bg-violet-50'}`}
-        >{l}</button>
+    <div className="mt-4 flex flex-col items-center gap-1.5">
+      {QWERTY.map((row, r) => (
+        <div key={r} className="flex justify-center gap-1.5">
+          {row.map((l) => (
+            <button
+              key={l}
+              onClick={() => onKey(l)}
+              className={`h-11 w-9 rounded-lg text-lg font-bold shadow transition active:scale-90 sm:w-11 ${highlight === l ? 'bg-green-400 text-white ring-2 ring-green-200' : 'bg-white text-stone-700 hover:bg-violet-50'}`}
+            >{l}</button>
+          ))}
+        </div>
       ))}
     </div>
   )

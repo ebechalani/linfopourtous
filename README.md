@@ -1,13 +1,13 @@
-# Numérique au Carmel · Maternelle (KG, 4–5 ans)
+# L'info pour tous · Maternelle (KG, 3–5 ans)
 
 Site **compagnon de classe** interactif pour aider le prof à donner le cours de
 numérique en maternelle. Bilingue **FR / EN**, pensé pour des **non-lecteurs** :
 gros boutons, emojis, consignes lues à voix haute (🔊), sons d'encouragement.
 
-D'après les manuels 2023 (6 chapitres) : *Je connais mon ordinateur, Dessins
+D'après les manuels 2023 (7 chapitres) : *Je connais mon ordinateur, Dessins
 animés, J'utilise le clavier, Je dessine avec Paint, Je code avec un algorithme,
-ScratchJr*. Le robot **mTiny** sera branché plus tard sur le moteur de jeu
-« grille + flèches ».
+ScratchJr, Robotique avec mTiny* — avec un robot **mTiny** simulé (commandes
+relatives, cartes du set, boucles).
 
 ## Lancer le site
 
