@@ -115,7 +115,7 @@ function ChapterView({ chapterId, onOpenActivity }) {
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {s.activities.map((a) => {
-                const playable = ['dog-grid', 'mouse', 'keyboard', 'paint'].includes(a.type)
+                const playable = a.type !== 'info'
                 return (
                   <button
                     key={a.id}
@@ -128,7 +128,7 @@ function ChapterView({ chapterId, onOpenActivity }) {
                       <span
                         className={`text-xs font-bold ${playable ? 'text-green-600' : 'text-stone-400'}`}
                       >
-                        {playable ? `▶ ${ui('play')}` : `🚧 ${ui('comingSoon')}`}
+                        {playable ? `▶ ${ui('play')}` : `👀 ${t({ fr: 'À découvrir', en: 'Discover' })}`}
                       </span>
                     </span>
                     <SpeakButton text={`${t(a.title)}. ${t(a.desc)}`} className="h-10 w-10 text-xl" />
