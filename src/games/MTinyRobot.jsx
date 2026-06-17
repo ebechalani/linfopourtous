@@ -34,6 +34,8 @@ const LEVELS = {
   3: { cols: 4, rows: 4, start: [3, 0], dir: 0, goal: [3, 3], walls: [] },   // tourner à droite puis avancer ×3
   4: { cols: 5, rows: 5, start: [4, 0], dir: 0, goal: [0, 4], walls: [] },   // avancer ×4, tourner, avancer ×4
   5: { cols: 5, rows: 5, start: [4, 4], dir: 0, goal: [0, 0], walls: [[2, 2]] }, // chemin en L
+  // escalier : (avancer, droite, avancer, gauche) répété ×3 atteint le but
+  6: { cols: 4, rows: 4, start: [3, 0], dir: 0, goal: [0, 3], walls: [] },
 }
 
 const same = (a, b) => a[0] === b[0] && a[1] === b[1]
@@ -50,6 +52,7 @@ export default function MTinyRobot({ config = {} }) {
   const [dir, setDir] = useState(level.dir)
   const [running, setRunning] = useState(false)
   const [status, setStatus] = useState('idle')
+  const [repeat, setRepeat] = useState(1) // boucle : combien de fois rejouer la suite
   const timer = useRef(null)
   // refs : suivent position + orientation pour les appuis rapides (modes tap / direct)
   const posRef = useRef(level.start)
@@ -65,7 +68,7 @@ export default function MTinyRobot({ config = {} }) {
     clearInterval(timer.current)
     posRef.current = level.start
     dirRef.current = level.dir
-    setProgram([]); setPos(level.start); setDir(level.dir); setRunning(false); setStatus('idle')
+    setProgram([]); setPos(level.start); setDir(level.dir); setRunning(false); setStatus('idle'); setRepeat(1)
   }
 
   const isWall = (r, c) => level.walls.some((w) => same(w, [r, c]))
@@ -112,18 +115,21 @@ export default function MTinyRobot({ config = {} }) {
   function run() {
     if (running || program.length === 0) return
     setRunning(true); setStatus('idle')
+    // boucle : on rejoue toute la suite `repeat` fois
+    const seq = []
+    for (let k = 0; k < repeat; k++) seq.push(...program)
     let st = { p: [...level.start], h: level.dir }
     setPos(st.p); setDir(st.h)
     let i = 0
     timer.current = setInterval(() => {
-      if (i >= program.length) {
+      if (i >= seq.length) {
         clearInterval(timer.current); setRunning(false)
         const won = same(st.p, level.goal)
         setStatus(won ? 'win' : 'fail')
         if (won) { sfx.win(); speak(t({ fr: 'Bravo !', en: 'Well done!' }), lang) } else sfx.fail()
         return
       }
-      const next = apply(program[i], st.p, st.h)
+      const next = apply(seq[i], st.p, st.h)
       if (!next) { clearInterval(timer.current); setRunning(false); setStatus('fail'); sfx.fail(); return }
       st = next; setPos(st.p); setDir(st.h); sfx.step(); i += 1
     }, 750)
@@ -208,6 +214,18 @@ export default function MTinyRobot({ config = {} }) {
               </button>
             ))}
           </div>
+
+          {/* Boucle : rejouer la suite plusieurs fois (activée par config.loop) */}
+          {!directMode && config.loop && (
+            <div className="flex items-center gap-2 rounded-full bg-amber-50 px-4 py-2 ring-2 ring-amber-200">
+              <span className="text-xl">🔁</span>
+              <span className="text-sm font-bold text-amber-700">{t({ fr: 'Répéter', en: 'Repeat' })}</span>
+              {[1, 2, 3].map((n) => (
+                <button key={n} onClick={() => { sfx.tap(); setRepeat(n) }} disabled={running}
+                  className={`h-10 w-10 rounded-full text-lg font-extrabold shadow transition active:scale-90 ${repeat === n ? 'bg-amber-400 text-white ring-2 ring-amber-300' : 'bg-white text-stone-600'}`}>×{n}</button>
+              ))}
+            </div>
+          )}
 
           <div className="flex gap-3">
             {!directMode && (
