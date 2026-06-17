@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "L'info pour tous - compagnon de classe interactif (Maternelle / KG, 3-5 ans)",
+  "description": "Linfopourtous - compagnon de classe interactif (Maternelle / KG, 3-5 ans)",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

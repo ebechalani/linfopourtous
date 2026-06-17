@@ -1,4 +1,4 @@
-# L'info pour tous · Maternelle (KG, 3–5 ans)
+# Linfopourtous · Maternelle (KG, 3–5 ans)
 
 Site **compagnon de classe** interactif pour aider le prof à donner le cours de
 numérique en maternelle. Bilingue **FR / EN**, pensé pour des **non-lecteurs** :
