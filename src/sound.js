@@ -42,6 +42,29 @@ export const sfx = {
   },
 }
 
+// La liste des voix se charge de façon asynchrone : au premier appel elle est
+// souvent vide. On la met en cache et on la rafraîchit via 'voiceschanged'.
+let voicesCache = []
+function loadVoices() {
+  if (typeof window === 'undefined' || !window.speechSynthesis) return []
+  voicesCache = window.speechSynthesis.getVoices() || []
+  return voicesCache
+}
+if (typeof window !== 'undefined' && window.speechSynthesis) {
+  loadVoices()
+  window.speechSynthesis.addEventListener('voiceschanged', loadVoices)
+}
+
+// Choisit une vraie voix de la bonne langue. Sans ça, le navigateur garde sa
+// voix par défaut (souvent anglaise) qui lit le français avec l'accent anglais.
+function pickVoice(lang) {
+  const voices = voicesCache.length ? voicesCache : loadVoices()
+  const prefix = lang === 'fr' ? 'fr' : 'en'
+  const byLang = (v) => v.lang && v.lang.toLowerCase().replace('_', '-').startsWith(prefix)
+  // on privilégie une voix "locale" (installée sur la machine), plus naturelle
+  return voices.find((v) => byLang(v) && v.localService) || voices.find(byLang) || null
+}
+
 // Lit un texte à voix haute dans la bonne langue. Utilisé par le bouton 🔊.
 export function speak(text, lang = 'fr') {
   if (typeof window === 'undefined' || !window.speechSynthesis) return
@@ -49,6 +72,8 @@ export function speak(text, lang = 'fr') {
     window.speechSynthesis.cancel()
     const u = new SpeechSynthesisUtterance(text)
     u.lang = lang === 'fr' ? 'fr-FR' : 'en-US'
+    const v = pickVoice(lang)
+    if (v) u.voice = v
     u.rate = 0.9
     u.pitch = 1.1
     window.speechSynthesis.speak(u)

@@ -3,6 +3,7 @@ import { useLang, useUI } from '../i18n.jsx'
 import SpeakButton from './SpeakButton.jsx'
 import ComingSoon from './ComingSoon.jsx'
 import DogGrid from '../games/DogGrid.jsx'
+import ArrowPick from '../games/ArrowPick.jsx'
 import MouseGame from '../games/MouseGame.jsx'
 import KeyboardGame from '../games/KeyboardGame.jsx'
 import PaintStudio from '../games/PaintStudio.jsx'
@@ -46,6 +47,8 @@ export default function ActivityModal({ activity, onClose }) {
 
         {activity.type === 'dog-grid' ? (
           <DogGrid config={activity.dog} />
+        ) : activity.type === 'arrow-pick' ? (
+          <ArrowPick config={activity.dog} />
         ) : activity.type === 'mouse' ? (
           <MouseGame variant={activity.variant} config={activity} />
         ) : activity.type === 'keyboard' ? (

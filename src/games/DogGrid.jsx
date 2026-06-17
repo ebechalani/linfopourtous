@@ -1,11 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLang, useUI } from '../i18n.jsx'
 import { sfx, speak } from '../sound.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MOTEUR « grille + séquence de déplacements + exécution pas-à-pas ».
-// C'est la brique réutilisable : demain, la même séquence pilotera mTiny.
-// Un déplacement = { dr, dc } (variation de ligne / colonne).
+// MOTEUR « grille + déplacements ». Brique réutilisable (base mTiny).
+// Trois modes, du plus simple au plus complet :
+//   mode 'direct'  : chaque flèche déplace le héros TOUT DE SUITE (cause→effet).
+//   mode 'program' : on range une suite de flèches puis on appuie sur Go (défaut).
+//   option hint    : des empreintes 🐾 montrent le chemin à reproduire (guidé).
 // ─────────────────────────────────────────────────────────────────────────────
 
 const MOVES = {
@@ -15,8 +17,9 @@ const MOVES = {
   right: { dr: 0, dc: 1, glyph: '➡️', label: { fr: 'Droite', en: 'Right' } },
 }
 
-// Niveaux : difficulté croissante. cols/rows, départ, but, murs éventuels.
+// Niveaux : du plus facile (0 = un seul pas) au plus difficile.
 const LEVELS = {
+  0: { cols: 3, rows: 1, start: [0, 0], goal: [0, 1], walls: [] }, // 1 pas
   1: { cols: 4, rows: 3, start: [2, 0], goal: [2, 3], walls: [] },
   2: { cols: 4, rows: 4, start: [3, 0], goal: [0, 0], walls: [] },
   3: { cols: 4, rows: 4, start: [3, 0], goal: [0, 3], walls: [] },
@@ -28,26 +31,36 @@ const LEVELS = {
 
 const same = (a, b) => a[0] === b[0] && a[1] === b[1]
 
+// Chemin simple en L (vertical puis horizontal) pour les empreintes du mode guidé.
+function hintPath(start, goal) {
+  const cells = []
+  let [r, c] = start
+  while (r !== goal[0]) { r += goal[0] > r ? 1 : -1; cells.push([r, c]) }
+  while (c !== goal[1]) { c += goal[1] > c ? 1 : -1; cells.push([r, c]) }
+  return cells.slice(0, -1) // sans la case du but
+}
+
 export default function DogGrid({ config = {} }) {
   const { lang, t } = useLang()
   const ui = useUI()
-  const level = LEVELS[config.level] || LEVELS[1]
+  const level = typeof config.level === 'object' ? config.level : (LEVELS[config.level] || LEVELS[1])
   const hero = config.hero || '🐶'
   const goalGlyph = config.goal || '🦴'
   const showCoords = !!config.showCoords
+  const direct = config.mode === 'direct'
+  const footprints = useMemo(() => (config.hint ? hintPath(level.start, level.goal) : []), [config.hint, level])
 
-  const [program, setProgram] = useState([]) // suite de clés de MOVES
+  const [program, setProgram] = useState([])
   const [pos, setPos] = useState(level.start)
   const [running, setRunning] = useState(false)
   const [status, setStatus] = useState('idle') // idle | win | fail
   const timer = useRef(null)
 
-  // Réinitialise quand on change de niveau (changement d'activité).
   useEffect(() => {
     reset()
     return () => clearInterval(timer.current)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config.level])
+  }, [config.level, config.mode])
 
   function reset() {
     clearInterval(timer.current)
@@ -57,6 +70,21 @@ export default function DogGrid({ config = {} }) {
     setStatus('idle')
   }
 
+  const isWall = (r, c) => level.walls.some((w) => same(w, [r, c]))
+  const inGrid = (r, c) => r >= 0 && c >= 0 && r < level.rows && c < level.cols
+
+  // ── Mode direct : on bouge tout de suite ───────────────────────────────────
+  function step(key) {
+    if (status === 'win') return
+    const m = MOVES[key]
+    const next = [pos[0] + m.dr, pos[1] + m.dc]
+    if (!inGrid(next[0], next[1]) || isWall(next[0], next[1])) { sfx.fail(); return }
+    sfx.step()
+    setPos(next)
+    if (same(next, level.goal)) { setStatus('win'); sfx.win(); speak(t({ fr: 'Bravo !', en: 'Well done!' }), lang) }
+  }
+
+  // ── Mode programme : on range les flèches puis Go ──────────────────────────
   function addMove(key) {
     if (running) return
     sfx.tap()
@@ -64,15 +92,10 @@ export default function DogGrid({ config = {} }) {
     setPos(level.start)
     setProgram((p) => (p.length >= 10 ? p : [...p, key]))
   }
-
   function removeAt(i) {
     if (running) return
     setProgram((p) => p.filter((_, idx) => idx !== i))
   }
-
-  const isWall = (r, c) => level.walls.some((w) => same(w, [r, c]))
-  const inGrid = (r, c) => r >= 0 && c >= 0 && r < level.rows && c < level.cols
-
   function run() {
     if (running || program.length === 0) return
     setRunning(true)
@@ -93,12 +116,7 @@ export default function DogGrid({ config = {} }) {
       const m = MOVES[program[i]]
       const next = [cur[0] + m.dr, cur[1] + m.dc]
       if (!inGrid(next[0], next[1]) || isWall(next[0], next[1])) {
-        // Bloqué : on s'arrête là, c'est raté.
-        clearInterval(timer.current)
-        setRunning(false)
-        setStatus('fail')
-        sfx.fail()
-        return
+        clearInterval(timer.current); setRunning(false); setStatus('fail'); sfx.fail(); return
       }
       cur = next
       setPos(cur)
@@ -106,6 +124,8 @@ export default function DogGrid({ config = {} }) {
       i += 1
     }, 650)
   }
+
+  const isFootprint = (r, c) => footprints.some((p) => same(p, [r, c]))
 
   // ── Rendu ──────────────────────────────────────────────────────────────────
   const cell = 'clamp(44px, 11vw, 76px)'
@@ -130,13 +150,12 @@ export default function DogGrid({ config = {} }) {
                 style={{ width: cell, height: cell }}
               >
                 {showCoords && (
-                  <span className="absolute left-1 top-0.5 text-[10px] text-stone-300">
-                    {c + 1}-{r + 1}
-                  </span>
+                  <span className="absolute left-1 top-0.5 text-[10px] text-stone-300">{c + 1}-{r + 1}</span>
                 )}
+                {!here && !goal && !wall && isFootprint(r, c) && <span className="opacity-30">🐾</span>}
                 {wall && '🧱'}
                 {goal && !here && goalGlyph}
-                {here && <span className="drop-shadow">{here && status === 'fail' ? '😟' : hero}</span>}
+                {here && <span className="drop-shadow">{status === 'fail' ? '😟' : hero}</span>}
               </div>
             )
           })
@@ -148,57 +167,53 @@ export default function DogGrid({ config = {} }) {
         {status === 'win' && <span className="text-green-600">{ui('win')}</span>}
         {status === 'fail' && <span className="text-rose-500">{ui('tryAgain')}</span>}
         {status === 'idle' && !running && (
-          <span className="text-stone-400">{ui('buildProgram')}</span>
+          <span className="text-stone-400">{direct ? t({ fr: 'Appuie sur une flèche', en: 'Press an arrow' }) : ui('buildProgram')}</span>
         )}
       </div>
 
-      {/* Programme (suite des flèches) */}
-      <div className="flex min-h-[60px] w-full max-w-xl flex-wrap items-center justify-center gap-2 rounded-2xl bg-violet-50 p-3 ring-2 ring-violet-200">
-        {program.length === 0 && <span className="text-3xl opacity-30">➕</span>}
-        {program.map((k, i) => (
-          <button
-            key={i}
-            onClick={() => removeAt(i)}
-            disabled={running}
-            className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-2xl shadow ring-2 ring-violet-200 transition hover:bg-rose-50 active:scale-90"
-            title={t(MOVES[k].label)}
-          >
-            {MOVES[k].glyph}
-          </button>
-        ))}
-      </div>
+      {/* Programme (mode programme seulement) */}
+      {!direct && (
+        <div className="flex min-h-[60px] w-full max-w-xl flex-wrap items-center justify-center gap-2 rounded-2xl bg-violet-50 p-3 ring-2 ring-violet-200">
+          {program.length === 0 && <span className="text-3xl opacity-30">➕</span>}
+          {program.map((k, i) => (
+            <button
+              key={i}
+              onClick={() => removeAt(i)}
+              disabled={running}
+              className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-2xl shadow ring-2 ring-violet-200 transition hover:bg-rose-50 active:scale-90"
+              title={t(MOVES[k].label)}
+            >{MOVES[k].glyph}</button>
+          ))}
+        </div>
+      )}
 
       {/* Palette des flèches */}
       <div className="grid grid-cols-4 gap-3">
         {Object.entries(MOVES).map(([key, m]) => (
           <button
             key={key}
-            onClick={() => addMove(key)}
+            onClick={() => (direct ? step(key) : addMove(key))}
             disabled={running}
             className="flex h-16 w-16 items-center justify-center rounded-2xl bg-violet-500 text-3xl text-white shadow-lg transition hover:bg-violet-600 active:scale-90 disabled:opacity-40"
             aria-label={t(m.label)}
-          >
-            {m.glyph}
-          </button>
+          >{m.glyph}</button>
         ))}
       </div>
 
       {/* Boutons d'action */}
       <div className="flex gap-3">
-        <button
-          onClick={run}
-          disabled={running || program.length === 0}
-          className="rounded-full bg-green-500 px-8 py-3 text-2xl font-extrabold text-white shadow-lg transition hover:bg-green-600 active:scale-95 disabled:opacity-40"
-        >
-          ▶ {ui('run')}
-        </button>
+        {!direct && (
+          <button
+            onClick={run}
+            disabled={running || program.length === 0}
+            className="rounded-full bg-green-500 px-8 py-3 text-2xl font-extrabold text-white shadow-lg transition hover:bg-green-600 active:scale-95 disabled:opacity-40"
+          >▶ {ui('run')}</button>
+        )}
         <button
           onClick={reset}
           disabled={running}
           className="rounded-full bg-stone-200 px-6 py-3 text-xl font-bold text-stone-700 shadow transition hover:bg-stone-300 active:scale-95 disabled:opacity-40"
-        >
-          ↺ {ui('reset')}
-        </button>
+        >↺ {ui('reset')}</button>
       </div>
     </div>
   )
