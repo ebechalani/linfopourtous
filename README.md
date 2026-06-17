@@ -23,7 +23,17 @@ npm run build    # génère le dossier dist/
 ```
 
 Le dossier `dist/` utilise des chemins relatifs : il s'ouvre par double-clic et
-peut être hébergé gratuitement (GitHub Pages, Netlix…).
+peut être hébergé gratuitement.
+
+## En ligne (GitHub Pages)
+
+À chaque `git push` sur `main`, le workflow `.github/workflows/deploy.yml`
+construit et publie le site automatiquement. URL en classe :
+
+**https://ebechalani.github.io/carmelites/**
+
+Le premier déploiement active Pages tout seul. Si Pages reste désactivé,
+l'activer une fois dans **Settings → Pages → Source : GitHub Actions**.
 
 ## Ce qui est jouable
 
