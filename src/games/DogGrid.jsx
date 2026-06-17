@@ -27,6 +27,8 @@ const LEVELS = {
   5: { cols: 5, rows: 5, start: [4, 0], goal: [0, 4], walls: [[2, 2]] },
   6: { cols: 5, rows: 5, start: [4, 2], goal: [0, 2], walls: [[2, 1], [2, 3]] },
   7: { cols: 6, rows: 5, start: [4, 0], goal: [0, 5], walls: [[2, 2], [3, 3]] },
+  // escalier : la suite (droite, monte) répétée ×3 atteint le but
+  8: { cols: 4, rows: 4, start: [3, 0], goal: [0, 3], walls: [] },
 }
 
 const same = (a, b) => a[0] === b[0] && a[1] === b[1]
@@ -54,6 +56,7 @@ export default function DogGrid({ config = {} }) {
   const [pos, setPos] = useState(level.start)
   const [running, setRunning] = useState(false)
   const [status, setStatus] = useState('idle') // idle | win | fail
+  const [repeat, setRepeat] = useState(1) // boucle : combien de fois rejouer la suite
   const timer = useRef(null)
   const posRef = useRef(level.start) // suit la position pour les appuis rapides (mode direct)
 
@@ -70,6 +73,7 @@ export default function DogGrid({ config = {} }) {
     setPos(level.start)
     setRunning(false)
     setStatus('idle')
+    setRepeat(1)
   }
 
   const isWall = (r, c) => level.walls.some((w) => same(w, [r, c]))
@@ -105,11 +109,14 @@ export default function DogGrid({ config = {} }) {
     if (running || program.length === 0) return
     setRunning(true)
     setStatus('idle')
+    // boucle : on rejoue toute la suite `repeat` fois (notion de répétition)
+    const seq = []
+    for (let k = 0; k < repeat; k++) seq.push(...program)
     let cur = [...level.start]
     setPos(cur)
     let i = 0
     timer.current = setInterval(() => {
-      if (i >= program.length) {
+      if (i >= seq.length) {
         clearInterval(timer.current)
         setRunning(false)
         const won = same(cur, level.goal)
@@ -118,7 +125,7 @@ export default function DogGrid({ config = {} }) {
         else sfx.fail()
         return
       }
-      const m = MOVES[program[i]]
+      const m = MOVES[seq[i]]
       const next = [cur[0] + m.dr, cur[1] + m.dc]
       if (!inGrid(next[0], next[1]) || isWall(next[0], next[1])) {
         clearInterval(timer.current); setRunning(false); setStatus('fail'); sfx.fail(); return
@@ -204,6 +211,22 @@ export default function DogGrid({ config = {} }) {
           >{m.glyph}</button>
         ))}
       </div>
+
+      {/* Boucle : rejouer la suite plusieurs fois (activée par config.loop) */}
+      {!direct && config.loop && (
+        <div className="flex items-center gap-2 rounded-full bg-amber-50 px-4 py-2 ring-2 ring-amber-200">
+          <span className="text-xl">🔁</span>
+          <span className="text-sm font-bold text-amber-700">{t({ fr: 'Répéter', en: 'Repeat' })}</span>
+          {[1, 2, 3].map((n) => (
+            <button
+              key={n}
+              onClick={() => { sfx.tap(); setRepeat(n) }}
+              disabled={running}
+              className={`h-10 w-10 rounded-full text-lg font-extrabold shadow transition active:scale-90 ${repeat === n ? 'bg-amber-400 text-white ring-2 ring-amber-300' : 'bg-white text-stone-600'}`}
+            >×{n}</button>
+          ))}
+        </div>
+      )}
 
       {/* Boutons d'action */}
       <div className="flex gap-3">
