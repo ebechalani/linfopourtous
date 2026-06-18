@@ -16,7 +16,12 @@ export default function UnpluggedCard({ activity }) {
   )
 
   return (
-    <div className="flex flex-col gap-4 py-1">
+    <div className="printable flex flex-col gap-4 py-1">
+      {/* Titre visible seulement à l'impression (l'en-tête de la modale est masqué) */}
+      <h2 className="hidden text-2xl font-extrabold text-stone-800 print:block">
+        {a.emoji} {t(a.title)}
+      </h2>
+
       <div className="flex flex-wrap items-center gap-3">
         <span className="rounded-full bg-lime-100 px-3 py-1 text-sm font-bold text-lime-700">
           🚫📱 {t({ fr: 'Sans écran', en: 'Screen-free' })}
@@ -26,6 +31,13 @@ export default function UnpluggedCard({ activity }) {
             ⏱️ {a.duration} min
           </span>
         )}
+        <div className="flex-1" />
+        <button
+          onClick={() => window.print()}
+          className="no-print rounded-full bg-stone-700 px-4 py-2 text-sm font-bold text-white shadow transition hover:bg-stone-800 active:scale-95"
+        >
+          🖨️ {t({ fr: 'Imprimer', en: 'Print' })}
+        </button>
       </div>
 
       {a.objective && (

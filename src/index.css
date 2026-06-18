@@ -50,3 +50,27 @@ button {
     transform: scale(1);
   }
 }
+
+/* Impression : n'imprimer que la fiche débranchée (.printable), proprement. */
+@media print {
+  body {
+    background: #fff;
+  }
+  body * {
+    visibility: hidden;
+  }
+  .printable,
+  .printable * {
+    visibility: visible;
+  }
+  .printable {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 1.5rem;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
