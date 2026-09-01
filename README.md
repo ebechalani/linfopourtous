@@ -30,7 +30,7 @@ peut être hébergé gratuitement.
 À chaque `git push` sur `main`, le workflow `.github/workflows/deploy.yml`
 construit et publie le site automatiquement. URL en classe :
 
-**https://ebechalani.github.io/carmelites/**
+**https://ebechalani.github.io/linfopourtous/**
 
 Le premier déploiement active Pages tout seul. Si Pages reste désactivé,
 l'activer une fois dans **Settings → Pages → Source : GitHub Actions**.
