@@ -28,6 +28,8 @@ export const UI = {
   buildProgram: { fr: 'Range les flèches puis appuie sur Go', en: 'Line up the arrows then press Go' },
   level: { fr: 'Niveau', en: 'Level' },
   siteBy: { fr: 'Site créé par', en: 'Site by' },
+  basedOn: { fr: 'D’après le manuel KG (2023) de', en: 'Based on the KG book (2023) by' },
+  publishedBy: { fr: 'publié par', en: 'published by' },
 }
 
 export function LangProvider({ children }) {
