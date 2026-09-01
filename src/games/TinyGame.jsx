@@ -84,7 +84,7 @@ function Stamp() {
         {marks.map((m) => (
           <span key={m.id} className="absolute text-4xl" style={{ left: `${m.x}%`, top: `${m.y}%`, transform: 'translate(-50%,-50%)' }}>{m.e}</span>
         ))}
-        {marks.length === 0 && <span className="absolute inset-0 flex items-center justify-center text-stone-300">{t({ fr: 'Touche partout !', en: 'Tap anywhere!' })}</span>}
+        {marks.length === 0 && <span className="absolute inset-0 flex items-center justify-center text-stone-500">{t({ fr: 'Touche partout !', en: 'Tap anywhere!' })}</span>}
       </div>
       <button onClick={() => { setMarks([]); sfx.tap() }} className="rounded-full bg-rose-100 px-5 py-2 text-lg font-bold text-rose-600 shadow active:scale-95">
         🗑️ {t({ fr: 'Effacer', en: 'Clear' })}

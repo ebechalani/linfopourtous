@@ -27,7 +27,7 @@ export default function ComingSoon({ activity }) {
           🚧 {ui('comingSoon')}
         </span>
       )}
-      <p className="text-sm italic text-stone-400">{t(hint)}</p>
+      <p className="text-sm italic text-stone-500">{t(hint)}</p>
     </div>
   )
 }

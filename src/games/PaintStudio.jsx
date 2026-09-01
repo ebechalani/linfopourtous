@@ -133,11 +133,17 @@ export default function PaintStudio({ activity }) {
     const tr = d[i0], tg = d[i0 + 1], tb = d[i0 + 2]
     const [fr, fg, fb] = hexToRgb(hex)
     if (tr === fr && tg === fg && tb === fb) return
+    // Masque de visite : sans lui, un pixel repeint qui reste dans la tolérance
+    // (clic sur un bord anti-crénelé) serait réempilé sans fin → onglet gelé.
+    const seen = new Uint8Array(W * H)
     const match = (i) => Math.abs(d[i] - tr) < 24 && Math.abs(d[i + 1] - tg) < 24 && Math.abs(d[i + 2] - tb) < 24
     const stack = [[x, y]]
     while (stack.length) {
       const [cx, cy] = stack.pop()
       if (cx < 0 || cy < 0 || cx >= W || cy >= H) continue
+      const p = cy * W + cx
+      if (seen[p]) continue
+      seen[p] = 1
       const i = at(cx, cy)
       if (!match(i)) continue
       d[i] = fr; d[i + 1] = fg; d[i + 2] = fb; d[i + 3] = 255

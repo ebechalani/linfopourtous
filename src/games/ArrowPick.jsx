@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLang } from '../i18n.jsx'
 import { sfx, speak } from '../sound.js'
 
@@ -25,17 +25,24 @@ export default function ArrowPick({ config = {} }) {
   const [wrong, setWrong] = useState(null)
   const [moved, setMoved] = useState(false)
   const won = score >= GOAL
+  const timers = useRef([])
+
+  // Coupe les timeouts (et leurs sons) si la modale se ferme entre-temps.
+  useEffect(() => () => {
+    timers.current.forEach(clearTimeout)
+    if (typeof window !== 'undefined' && window.speechSynthesis) window.speechSynthesis.cancel()
+  }, [])
 
   function pick(k) {
     if (won || moved) return
     if (k === dir) {
       sfx.step(); setMoved(true); setWrong(null)
       const s = score + 1
-      setTimeout(() => {
+      timers.current.push(setTimeout(() => {
         setScore(s); setMoved(false); setDir(KEYS[Math.floor(Math.random() * 4)])
         if (s >= GOAL) { sfx.win(); speak(t({ fr: 'Bravo !', en: 'Well done!' }), lang) }
-      }, 550)
-    } else { sfx.fail(); setWrong(k); setTimeout(() => setWrong(null), 400) }
+      }, 550))
+    } else { sfx.fail(); setWrong(k); timers.current.push(setTimeout(() => setWrong(null), 400)) }
   }
 
   // position de l'os autour du chien (centre d'une grille 3×3)

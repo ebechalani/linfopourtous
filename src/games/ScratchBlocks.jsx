@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLang } from '../i18n.jsx'
 import { sfx, speak } from '../sound.js'
 
@@ -30,6 +30,13 @@ export default function ScratchBlocks({ config = {} }) {
   const [bubble, setBubble] = useState('')
   const [running, setRunning] = useState(false)
   const timer = useRef(null)
+
+  // À la fermeture de la modale : couper la chaîne de timeouts et la voix,
+  // sinon les bips et le « Bonjour ! » continuent par-dessus la parole du prof.
+  useEffect(() => () => {
+    clearTimeout(timer.current)
+    if (typeof window !== 'undefined' && window.speechSynthesis) window.speechSynthesis.cancel()
+  }, [])
 
   function add(k) { if (running) return; sfx.tap(); setProgram((p) => (p.length >= 8 ? p : [...p, k])) }
   function removeAt(i) { if (running) return; setProgram((p) => p.filter((_, idx) => idx !== i)) }
@@ -78,7 +85,7 @@ export default function ScratchBlocks({ config = {} }) {
 
       {/* Programme (suite de blocs) */}
       <div className="flex min-h-[60px] w-full max-w-xl flex-wrap items-center justify-center gap-2 rounded-2xl bg-stone-50 p-3 ring-2 ring-stone-200">
-        {program.length === 0 && <span className="text-stone-300">{t({ fr: 'Ajoute des blocs puis appuie sur le drapeau', en: 'Add blocks then press the flag' })}</span>}
+        {program.length === 0 && <span className="text-stone-600">{t({ fr: 'Ajoute des blocs puis appuie sur le drapeau', en: 'Add blocks then press the flag' })}</span>}
         {program.map((k, i) => (
           <button key={i} onClick={() => removeAt(i)} disabled={running}
             className={`flex h-12 w-12 items-center justify-center rounded-xl ${BLOCKS[k].color} text-2xl text-white shadow transition hover:opacity-80 active:scale-90`}
@@ -103,8 +110,9 @@ export default function ScratchBlocks({ config = {} }) {
           className="rounded-full bg-green-500 px-8 py-3 text-2xl font-extrabold text-white shadow-lg transition hover:bg-green-600 active:scale-95 disabled:opacity-40">
           🚩 {t({ fr: 'Go !', en: 'Go!' })}
         </button>
-        <button onClick={reset} disabled={running}
-          className="rounded-full bg-stone-200 px-6 py-3 text-xl font-bold text-stone-700 shadow transition hover:bg-stone-300 active:scale-95 disabled:opacity-40">
+        {/* Actif même pendant l'exécution : c'est le bouton « stop » du prof. */}
+        <button onClick={reset}
+          className="rounded-full bg-stone-200 px-6 py-3 text-xl font-bold text-stone-700 shadow transition hover:bg-stone-300 active:scale-95">
           ↺ {t({ fr: 'Recommencer', en: 'Reset' })}
         </button>
       </div>

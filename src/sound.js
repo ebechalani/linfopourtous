@@ -76,16 +76,24 @@ function pickVoice(lang) {
   return voices.find((v) => byLang(v) && v.localService) || voices.find(byLang) || null
 }
 
+// Y a-t-il une voix installée pour cette langue ? (sert au bandeau d'alerte)
+export function hasVoice(lang) {
+  return !!pickVoice(lang)
+}
+
 // Lit un texte à voix haute dans la bonne langue. Utilisé par le bouton 🔊.
 export function speak(text, lang = 'fr') {
   if (muted) return
   if (typeof window === 'undefined' || !window.speechSynthesis) return
   try {
+    const v = pickVoice(lang)
+    // Sans voix de la bonne langue, le navigateur lirait le français avec une
+    // voix anglaise (A = « eï ») : on préfère se taire plutôt qu'enseigner faux.
+    if (!v) return
     window.speechSynthesis.cancel()
     const u = new SpeechSynthesisUtterance(text)
     u.lang = lang === 'fr' ? 'fr-FR' : 'en-US'
-    const v = pickVoice(lang)
-    if (v) u.voice = v
+    u.voice = v
     u.rate = 0.9
     u.pitch = 1.1
     window.speechSynthesis.speak(u)

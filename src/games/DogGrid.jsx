@@ -18,23 +18,25 @@ const MOVES = {
 }
 
 // Niveaux : du plus facile (0 = un seul pas) au plus difficile.
+// `par` = nombre de flèches à POSER pour la meilleure solution (sert aux étoiles).
 const LEVELS = {
-  0: { cols: 3, rows: 1, start: [0, 0], goal: [0, 1], walls: [] }, // 1 pas
-  1: { cols: 4, rows: 3, start: [2, 0], goal: [2, 3], walls: [] },
-  2: { cols: 4, rows: 4, start: [3, 0], goal: [0, 0], walls: [] },
-  3: { cols: 4, rows: 4, start: [3, 0], goal: [0, 3], walls: [] },
-  4: { cols: 5, rows: 4, start: [3, 0], goal: [0, 4], walls: [] },
-  5: { cols: 5, rows: 5, start: [4, 0], goal: [0, 4], walls: [[2, 2]] },
-  6: { cols: 5, rows: 5, start: [4, 2], goal: [0, 2], walls: [[2, 1], [2, 3]] },
-  7: { cols: 6, rows: 5, start: [4, 0], goal: [0, 5], walls: [[2, 2], [3, 3]] },
-  // escalier : la suite (droite, monte) répétée ×3 atteint le but
-  8: { cols: 4, rows: 4, start: [3, 0], goal: [0, 3], walls: [] },
+  0: { cols: 3, rows: 1, start: [0, 0], goal: [0, 1], walls: [], par: 1 }, // 1 pas
+  1: { cols: 4, rows: 3, start: [2, 0], goal: [2, 3], walls: [], par: 3 },
+  2: { cols: 4, rows: 4, start: [3, 0], goal: [0, 0], walls: [], par: 3 },
+  3: { cols: 4, rows: 4, start: [3, 0], goal: [0, 3], walls: [], par: 6 },
+  4: { cols: 5, rows: 4, start: [3, 0], goal: [0, 4], walls: [], par: 7 },
+  5: { cols: 5, rows: 5, start: [4, 0], goal: [0, 4], walls: [[2, 2]], par: 8 },
+  6: { cols: 5, rows: 5, start: [4, 2], goal: [0, 2], walls: [[2, 1], [2, 3]], par: 4 },
+  7: { cols: 6, rows: 5, start: [4, 0], goal: [0, 5], walls: [[2, 2], [3, 3]], par: 9 },
+  // escalier : la suite (droite, monte) répétée ×3 atteint le but → 2 flèches posées
+  8: { cols: 4, rows: 4, start: [3, 0], goal: [0, 3], walls: [], par: 2 },
 }
 
 const same = (a, b) => a[0] === b[0] && a[1] === b[1]
 
-// Défi : moins de cartes = plus d'étoiles (les boucles donnent peu de cartes).
-const starsFor = (cards) => (cards <= 3 ? 3 : cards <= 6 ? 2 : 1)
+// Défi : on compare au `par` du niveau (nombre optimal de flèches à poser),
+// sinon la solution parfaite d'un grand niveau serait punie.
+const starsFor = (cards, par) => (cards <= par ? 3 : cards <= par + 2 ? 2 : 1)
 
 // Chemin simple en L (vertical puis horizontal) pour les empreintes du mode guidé.
 function hintPath(start, goal) {
@@ -53,6 +55,7 @@ export default function DogGrid({ config = {} }) {
   const goalGlyph = config.goal || '🦴'
   const showCoords = !!config.showCoords
   const direct = config.mode === 'direct'
+  const par = level.par || 6 // flèches de la meilleure solution (défi/étoiles)
   const footprints = useMemo(() => (config.hint ? hintPath(level.start, level.goal) : []), [config.hint, level])
 
   const [program, setProgram] = useState([])
@@ -60,6 +63,13 @@ export default function DogGrid({ config = {} }) {
   const [running, setRunning] = useState(false)
   const [status, setStatus] = useState('idle') // idle | win | fail
   const [repeat, setRepeat] = useState(1) // boucle : combien de fois rejouer la suite
+  const [blocked, setBlocked] = useState(false) // signal visuel : mouvement impossible
+  const blockTimer = useRef(null)
+  function flashBlocked() {
+    setBlocked(true)
+    clearTimeout(blockTimer.current)
+    blockTimer.current = setTimeout(() => setBlocked(false), 400)
+  }
   const timer = useRef(null)
   const posRef = useRef(level.start) // suit la position pour les appuis rapides (mode direct)
 
@@ -89,7 +99,7 @@ export default function DogGrid({ config = {} }) {
     const m = MOVES[key]
     const p = posRef.current
     const next = [p[0] + m.dr, p[1] + m.dc]
-    if (!inGrid(next[0], next[1]) || isWall(next[0], next[1])) { sfx.fail(); return }
+    if (!inGrid(next[0], next[1]) || isWall(next[0], next[1])) { sfx.fail(); flashBlocked(); return }
     posRef.current = next
     sfx.step()
     setPos(next)
@@ -161,11 +171,11 @@ export default function DogGrid({ config = {} }) {
                 key={`${r}-${c}`}
                 className={`relative flex items-center justify-center rounded-xl text-3xl transition-all duration-300 ${
                   wall ? 'bg-stone-400' : 'bg-white'
-                } ${here ? 'ring-4 ring-amber-400' : 'ring-1 ring-green-200'}`}
+                } ${here ? (blocked ? 'ring-4 ring-rose-400 bg-rose-50' : 'ring-4 ring-amber-400') : 'ring-1 ring-green-200'}`}
                 style={{ width: cell, height: cell }}
               >
                 {showCoords && (
-                  <span className="absolute left-1 top-0.5 text-[10px] text-stone-300">{c + 1}-{r + 1}</span>
+                  <span className="absolute left-1 top-0.5 text-xs font-bold text-stone-600">{c + 1}-{r + 1}</span>
                 )}
                 {!here && !goal && !wall && isFootprint(r, c) && <span className="opacity-30">🐾</span>}
                 {wall && '🧱'}
@@ -181,18 +191,20 @@ export default function DogGrid({ config = {} }) {
       <div className="min-h-[2.5rem] text-center font-bold">
         {status === 'win' && (
           <div className="text-xl text-green-600">
-            {ui('win')}{!direct && program.length > 0 && <> {'⭐'.repeat(starsFor(program.length))}</>}
+            {ui('win')}{!direct && program.length > 0 && <> {'⭐'.repeat(starsFor(program.length, par))}</>}
             {!direct && program.length > 0 && (
-              <div className="text-xs font-bold text-stone-400">
-                {program.length} {t({ fr: program.length > 1 ? 'cartes' : 'carte', en: 'cards' })}{repeat > 1 ? ` × ${repeat}` : ''}
-                {starsFor(program.length) < 3 ? ` · ${t({ fr: 'essaie avec moins !', en: 'try with fewer!' })}` : ''}
+              <div className="text-xs font-bold text-stone-500">
+                {program.length} {t({ fr: program.length > 1 ? 'flèches' : 'flèche', en: 'arrows' })}{repeat > 1 ? ` × ${repeat}` : ''}
+                {program.length > par ? ` · ${t({ fr: 'essaie avec moins !', en: 'try with fewer!' })}` : ''}
               </div>
             )}
           </div>
         )}
         {status === 'fail' && <span className="text-xl text-rose-500">{ui('tryAgain')}</span>}
         {status === 'idle' && !running && (
-          <span className="text-xl text-stone-400">{direct ? t({ fr: 'Appuie sur une flèche', en: 'Press an arrow' }) : ui('buildProgram')}</span>
+          blocked
+            ? <span className="text-xl text-rose-500">🚫 {t({ fr: 'On ne peut pas aller par là !', en: 'Can’t go that way!' })}</span>
+            : <span className="text-xl text-stone-500">{direct ? t({ fr: 'Appuie sur une flèche', en: 'Press an arrow' }) : ui('buildProgram')}</span>
         )}
       </div>
 

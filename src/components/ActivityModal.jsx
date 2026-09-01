@@ -28,14 +28,14 @@ export default function ActivityModal({ activity, onClose }) {
   const title = t(activity.title)
 
   return (
+    // Pas de fermeture au clic sur le fond : un doigt posé à côté détruirait le
+    // dessin ou le programme en cours. La croix (48 px) et Échap suffisent.
     <div
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/50 p-3 backdrop-blur-sm sm:p-6"
-      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
     >
-      <div
-        className="my-auto w-full max-w-2xl rounded-3xl bg-white p-5 shadow-2xl sm:p-7"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="my-auto w-full max-w-2xl rounded-3xl bg-white p-5 shadow-2xl sm:p-7">
         <div className="mb-4 flex items-center gap-3">
           <span className="text-4xl">{activity.emoji}</span>
           <h2 className="flex-1 text-2xl font-extrabold text-stone-800">{title}</h2>

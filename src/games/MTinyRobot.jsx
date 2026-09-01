@@ -28,26 +28,28 @@ const CARDS = {
 
 // Niveaux. Le robot commence TOUJOURS orienté vers le haut (dir = 0 = Nord), donc
 // la flèche d'orientation part vers le haut. Tourner devient nécessaire dès le 3.
+// `par` = nombre de cartes à POSER pour la meilleure solution (sert aux étoiles).
 const LEVELS = {
-  1: { cols: 3, rows: 4, start: [3, 1], dir: 0, goal: [0, 1], walls: [] },   // avancer ×3 vers le haut
-  2: { cols: 4, rows: 4, start: [3, 0], dir: 0, goal: [0, 0], walls: [] },   // avancer ×3 vers le haut
-  3: { cols: 4, rows: 4, start: [3, 0], dir: 0, goal: [3, 3], walls: [] },   // tourner à droite puis avancer ×3
-  4: { cols: 5, rows: 5, start: [4, 0], dir: 0, goal: [0, 4], walls: [] },   // avancer ×4, tourner, avancer ×4
-  5: { cols: 5, rows: 5, start: [4, 4], dir: 0, goal: [0, 0], walls: [[2, 2]] }, // chemin en L
-  // escalier : (avancer, droite, avancer, gauche) répété ×3 atteint le but
-  6: { cols: 4, rows: 4, start: [3, 0], dir: 0, goal: [0, 3], walls: [] },
+  1: { cols: 3, rows: 4, start: [3, 1], dir: 0, goal: [0, 1], walls: [], par: 3 },   // avancer ×3
+  2: { cols: 4, rows: 4, start: [3, 0], dir: 0, goal: [0, 0], walls: [], par: 3 },   // avancer ×3
+  3: { cols: 4, rows: 4, start: [3, 0], dir: 0, goal: [3, 3], walls: [], par: 4 },   // droite + avancer ×3
+  4: { cols: 5, rows: 5, start: [4, 0], dir: 0, goal: [0, 4], walls: [], par: 9 },   // ×4, tourner, ×4
+  5: { cols: 5, rows: 5, start: [4, 4], dir: 0, goal: [0, 0], walls: [[2, 2]], par: 9 }, // chemin en L
+  // escalier : (avancer, droite, avancer, gauche) répété ×3 → 4 cartes posées
+  6: { cols: 4, rows: 4, start: [3, 0], dir: 0, goal: [0, 3], walls: [], par: 4 },
 }
 
 const same = (a, b) => a[0] === b[0] && a[1] === b[1]
 
-// Défi : moins de cartes = plus d'étoiles (les boucles donnent peu de cartes).
-const starsFor = (cards) => (cards <= 3 ? 3 : cards <= 6 ? 2 : 1)
+// Défi : on compare au `par` du niveau (cartes de la meilleure solution).
+const starsFor = (cards, par) => (cards <= par ? 3 : cards <= par + 2 ? 2 : 1)
 
 export default function MTinyRobot({ config = {} }) {
   const { t, lang } = useLang()
   const level = LEVELS[config.level] || LEVELS[1]
   const tapMode = config.mode === 'tap' // Novice : un seul bouton « Avancer »
   const directMode = config.mode === 'direct' // chaque carte agit tout de suite
+  const par = level.par || 6 // cartes de la meilleure solution (défi/étoiles)
   const goalGlyph = config.goal || '🎁'
 
   const [program, setProgram] = useState([])
@@ -56,6 +58,13 @@ export default function MTinyRobot({ config = {} }) {
   const [running, setRunning] = useState(false)
   const [status, setStatus] = useState('idle')
   const [repeat, setRepeat] = useState(1) // boucle : combien de fois rejouer la suite
+  const [blocked, setBlocked] = useState(false) // signal visuel : mouvement impossible
+  const blockTimer = useRef(null)
+  function flashBlocked() {
+    setBlocked(true)
+    clearTimeout(blockTimer.current)
+    blockTimer.current = setTimeout(() => setBlocked(false), 400)
+  }
   const timer = useRef(null)
   // refs : suivent position + orientation pour les appuis rapides (modes tap / direct)
   const posRef = useRef(level.start)
@@ -93,7 +102,7 @@ export default function MTinyRobot({ config = {} }) {
     if (status === 'win') return
     // posRef évite la fermeture obsolète si l'enfant tape vite (tap mode = pas de rotation)
     const next = apply('forward', posRef.current, level.dir)
-    if (!next) { sfx.fail(); return }
+    if (!next) { sfx.fail(); flashBlocked(); return }
     posRef.current = next.p
     sfx.step(); setPos(next.p)
     if (same(next.p, level.goal)) { setStatus('win'); sfx.win(); speak(t({ fr: 'Bravo !', en: 'Well done!' }), lang) }
@@ -103,7 +112,7 @@ export default function MTinyRobot({ config = {} }) {
   function stepDirect(card) {
     if (status === 'win') return
     const next = apply(card, posRef.current, dirRef.current)
-    if (!next) { sfx.fail(); return } // bloqué par un mur ou le bord
+    if (!next) { sfx.fail(); flashBlocked(); return } // bloqué par un mur ou le bord
     posRef.current = next.p
     dirRef.current = next.h
     setPos(next.p); setDir(next.h)
@@ -153,7 +162,7 @@ export default function MTinyRobot({ config = {} }) {
             const wall = isWall(r, c)
             return (
               <div key={`${r}-${c}`}
-                className={`relative flex items-center justify-center rounded-xl text-3xl transition-all duration-300 ${wall ? 'bg-stone-400' : 'bg-white'} ${here ? 'ring-4 ring-amber-400' : 'ring-1 ring-sky-200'}`}
+                className={`relative flex items-center justify-center rounded-xl text-3xl transition-all duration-300 ${wall ? 'bg-stone-400' : blocked && here ? 'bg-rose-50' : 'bg-white'} ${here ? (blocked ? 'ring-4 ring-rose-400' : 'ring-4 ring-amber-400') : 'ring-1 ring-sky-200'}`}
                 style={{ width: cell, height: cell }}>
                 {wall && '🧱'}
                 {goal && !here && goalGlyph}
@@ -178,22 +187,24 @@ export default function MTinyRobot({ config = {} }) {
       <div className="min-h-[2.5rem] text-center text-lg font-bold">
         {status === 'win' && (
           <div className="text-green-600">
-            {t({ fr: 'Bravo ! 🎉', en: 'Well done! 🎉' })}{!tapMode && !directMode && program.length > 0 && <> {'⭐'.repeat(starsFor(program.length))}</>}
+            {t({ fr: 'Bravo ! 🎉', en: 'Well done! 🎉' })}{!tapMode && !directMode && program.length > 0 && <> {'⭐'.repeat(starsFor(program.length, par))}</>}
             {!tapMode && !directMode && program.length > 0 && (
-              <div className="text-xs font-bold text-stone-400">
+              <div className="text-xs font-bold text-stone-500">
                 {program.length} {t({ fr: program.length > 1 ? 'cartes' : 'carte', en: 'cards' })}{repeat > 1 ? ` × ${repeat}` : ''}
-                {starsFor(program.length) < 3 ? ` · ${t({ fr: 'essaie avec moins !', en: 'try with fewer!' })}` : ''}
+                {program.length > par ? ` · ${t({ fr: 'essaie avec moins !', en: 'try with fewer!' })}` : ''}
               </div>
             )}
           </div>
         )}
         {status === 'fail' && <span className="text-rose-500">{t({ fr: 'Essaie encore !', en: 'Try again!' })}</span>}
         {status === 'idle' && !running && (
-          <span className="text-stone-400">{
-            tapMode ? t({ fr: 'Touche pour avancer', en: 'Tap to move forward' })
-              : directMode ? t({ fr: 'Appuie sur une carte : le robot bouge tout de suite', en: 'Press a card: the robot moves right away' })
-                : t({ fr: 'Range les cartes puis appuie sur Go', en: 'Line up the cards then press Go' })
-          }</span>
+          blocked
+            ? <span className="text-rose-500">🚫 {t({ fr: 'Le robot ne peut pas aller par là !', en: 'The robot can’t go that way!' })}</span>
+            : <span className="text-stone-500">{
+                tapMode ? t({ fr: 'Touche pour avancer', en: 'Tap to move forward' })
+                  : directMode ? t({ fr: 'Appuie sur une carte : le robot bouge tout de suite', en: 'Press a card: the robot moves right away' })
+                    : t({ fr: 'Range les cartes puis appuie sur Go', en: 'Line up the cards then press Go' })
+              }</span>
         )}
       </div>
 
@@ -240,23 +251,24 @@ export default function MTinyRobot({ config = {} }) {
             </div>
           )}
 
-          <div className="flex gap-3">
-            {!directMode && (
-              <button onClick={run} disabled={running || program.length === 0}
-                className="rounded-full bg-green-500 px-8 py-3 text-2xl font-extrabold text-white shadow-lg transition hover:bg-green-600 active:scale-95 disabled:opacity-40">
-                ▶ {t({ fr: 'Go !', en: 'Go!' })}
-              </button>
-            )}
-            <button onClick={reset} disabled={running}
-              className="rounded-full bg-stone-200 px-6 py-3 text-xl font-bold text-stone-700 shadow transition hover:bg-stone-300 active:scale-95 disabled:opacity-40">
-              ↺ {t({ fr: 'Recommencer', en: 'Reset' })}
+          {!directMode && (
+            <button onClick={run} disabled={running || program.length === 0}
+              className="rounded-full bg-green-500 px-8 py-3 text-2xl font-extrabold text-white shadow-lg transition hover:bg-green-600 active:scale-95 disabled:opacity-40">
+              ▶ {t({ fr: 'Go !', en: 'Go!' })}
             </button>
-          </div>
+          )}
         </>
       )}
 
+      {/* Recommencer : disponible dans TOUS les modes (sinon le mode 3 ans
+          reste bloqué après la victoire) */}
+      <button onClick={reset} disabled={running}
+        className="rounded-full bg-stone-200 px-6 py-3 text-xl font-bold text-stone-700 shadow transition hover:bg-stone-300 active:scale-95 disabled:opacity-40">
+        ↺ {t({ fr: 'Recommencer', en: 'Reset' })}
+      </button>
+
       {/* Pont vers le vrai robot */}
-      <p className="max-w-md text-center text-xs italic text-stone-400">
+      <p className="max-w-md text-center text-xs italic text-stone-500">
         {t({ fr: '👉 Rejoue la même suite avec le vrai robot mTiny et ses cartes de commande.', en: '👉 Replay the same sequence with the real mTiny robot and its command cards.' })}
       </p>
     </div>

@@ -8,6 +8,7 @@ import MuteToggle from './components/MuteToggle.jsx'
 import SpeakButton from './components/SpeakButton.jsx'
 import ActivityModal from './components/ActivityModal.jsx'
 import Celebration from './components/Celebration.jsx'
+import VoiceNotice from './components/VoiceNotice.jsx'
 import { sfx } from './sound.js'
 
 function Header({ onHome }) {
@@ -62,7 +63,7 @@ function Home({ onOpenChapter, done }) {
                 {ui('chapter')} {i + 1} · {ch.tool}
               </div>
               <div className="text-xl font-extrabold text-stone-800">{t(ch.title)}</div>
-              <div className="text-sm text-stone-400">
+              <div className="text-sm text-stone-500">
                 {ch.sessions.length} {ui('sessions')}
               </div>
             </button>
@@ -85,19 +86,25 @@ function LevelBadge({ id }) {
   )
 }
 
-// Filtre par niveau, en haut du chapitre.
-function LevelFilter({ value, onChange }) {
+// Filtre par niveau, en haut du chapitre. `available` = niveaux réellement
+// présents dans ce chapitre ; les autres sont grisés pour éviter une page vide.
+function LevelFilter({ value, onChange, available }) {
   const { t } = useLang()
   const Btn = ({ id, emoji, label }) => {
     const active = value === id
     const l = id !== 'all' ? LEVEL_BY_ID[id] : null
+    const absent = id !== 'all' && !available.has(id)
     return (
       <button
         onClick={() => onChange(id)}
+        disabled={absent}
+        title={absent ? t({ fr: 'Aucune activité de ce niveau dans ce chapitre', en: 'No activity at this level in this chapter' }) : undefined}
         className={`rounded-full px-4 py-2 text-sm font-bold shadow-sm ring-2 transition active:scale-95 ${
-          active
-            ? l ? `${l.soft} ${l.text} ${l.ring}` : 'bg-violet-100 text-violet-700 ring-violet-300'
-            : 'bg-white text-stone-500 ring-stone-200 hover:bg-stone-50'
+          absent
+            ? 'cursor-not-allowed bg-stone-50 text-stone-300 ring-stone-100'
+            : active
+              ? l ? `${l.soft} ${l.text} ${l.ring}` : 'bg-violet-100 text-violet-700 ring-violet-300'
+              : 'bg-white text-stone-500 ring-stone-200 hover:bg-stone-50'
         }`}
       >
         {emoji} {label}
@@ -115,7 +122,7 @@ function LevelFilter({ value, onChange }) {
   )
 }
 
-function ChapterView({ chapterId, onOpenActivity, done, markDone, onClearProgress }) {
+function ChapterView({ chapterId, onOpenActivity, done, markDone, onClearChapter }) {
   const { t } = useLang()
   const ui = useUI()
   const ch = findChapter(chapterId)
@@ -126,6 +133,9 @@ function ChapterView({ chapterId, onOpenActivity, done, markDone, onClearProgres
   const shownLevels = level === 'all' ? LEVELS.map((l) => l.id) : [level]
   const total = totalInChapter(ch)
   const d = doneInChapter(done, ch.id)
+  // niveaux réellement présents dans ce chapitre (pour griser le filtre)
+  const available = new Set(ch.sessions.flatMap((s) => s.activities.map(levelOf)))
+  const nothingShown = level !== 'all' && !available.has(level)
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-8 sm:px-8">
@@ -147,14 +157,29 @@ function ChapterView({ chapterId, onOpenActivity, done, markDone, onClearProgres
             {d >= total ? '✓ ' : ''}{d}/{total}
           </span>
           {d > 0 && (
-            <button onClick={onClearProgress} className="text-xs font-bold text-stone-400 underline transition hover:text-rose-500">
-              ↺ {t({ fr: 'remettre à zéro', en: 'reset' })}
+            <button
+              onClick={() => {
+                const ok = window.confirm(t({
+                  fr: `Remettre à zéro la progression de ce chapitre (${d} activité${d > 1 ? 's' : ''}) ?`,
+                  en: `Reset this chapter's progress (${d} activit${d > 1 ? 'ies' : 'y'})?`,
+                }))
+                if (ok) onClearChapter(ch.id)
+              }}
+              className="text-xs font-bold text-stone-400 underline transition hover:text-rose-500"
+            >
+              ↺ {t({ fr: 'remettre ce chapitre à zéro', en: 'reset this chapter' })}
             </button>
           )}
         </div>
       </div>
 
-      <LevelFilter value={level} onChange={setLevel} />
+      <LevelFilter value={level} onChange={setLevel} available={available} />
+
+      {nothingShown && (
+        <div className="rounded-2xl bg-amber-50 p-4 text-center font-bold text-amber-700 ring-2 ring-amber-200">
+          {t({ fr: 'Aucune activité à ce niveau dans ce chapitre — choisis 🌈 Tous.', en: 'No activity at this level in this chapter — pick 🌈 All.' })}
+        </div>
+      )}
 
       <div className="flex flex-col gap-6">
         {ch.sessions.map((s, i) => {
@@ -269,8 +294,9 @@ function Shell() {
       setCelebrate(chapter)
     }
   }
-  function clearProgress() {
-    const next = new Set()
+  // Efface la progression d'UN chapitre (le bouton est sous son compteur).
+  function clearChapter(chId) {
+    const next = new Set([...done].filter((k) => !k.startsWith(chId + '-')))
     saveDone(next)
     setDone(next)
   }
@@ -278,6 +304,10 @@ function Shell() {
   return (
     <div className="min-h-full pb-16">
       <Header onHome={() => { setChapterId(null); setActivity(null) }} />
+
+      <div className="px-4 pt-4 sm:px-8">
+        <VoiceNotice />
+      </div>
 
       {chapterId && (
         <div className="mx-auto max-w-4xl px-4 pt-4 sm:px-8">
@@ -291,7 +321,7 @@ function Shell() {
       )}
 
       {chapterId ? (
-        <ChapterView chapterId={chapterId} onOpenActivity={setActivity} done={done} markDone={markDone} onClearProgress={clearProgress} />
+        <ChapterView chapterId={chapterId} onOpenActivity={setActivity} done={done} markDone={markDone} onClearChapter={clearChapter} />
       ) : (
         <Home onOpenChapter={setChapterId} done={done} />
       )}
