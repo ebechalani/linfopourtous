@@ -25,6 +25,9 @@ function tone(freq, start, duration, type = 'sine', gain = 0.15) {
   if (muted) return
   const ac = ctx()
   if (!ac) return
+  // Chrome/Edge peuvent suspendre le contexte (onglet longtemps en arrière-plan,
+  // TBI mis en veille) : on le relance, sinon plus aucun son jusqu'au rechargement.
+  if (ac.state === 'suspended') ac.resume().catch(() => {})
   const osc = ac.createOscillator()
   const g = ac.createGain()
   osc.type = type

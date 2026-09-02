@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { LangProvider, useLang, useUI } from './i18n.jsx'
 import { CHAPTERS, findChapter } from './data/curriculum.js'
 import { LEVELS, LEVEL_BY_ID, levelOf } from './data/levels.js'
 import { loadDone, saveDone, doneInChapter, totalInChapter } from './data/progress.js'
 import LangToggle from './components/LangToggle.jsx'
 import MuteToggle from './components/MuteToggle.jsx'
+import FullscreenToggle from './components/FullscreenToggle.jsx'
 import SpeakButton from './components/SpeakButton.jsx'
 import ActivityModal from './components/ActivityModal.jsx'
 import Celebration from './components/Celebration.jsx'
@@ -23,6 +24,7 @@ function Header({ onHome }) {
         </div>
       </button>
       <div className="flex-1" />
+      <FullscreenToggle />
       <MuteToggle />
       <LangToggle />
     </header>
@@ -242,7 +244,7 @@ function ChapterView({ chapterId, onOpenActivity, done, markDone, onClearChapter
                               className={`flex items-center gap-3 rounded-2xl border-2 p-3 transition hover:bg-violet-50 ${isDone ? 'border-green-200 bg-green-50' : 'border-stone-100 bg-stone-50'}`}
                             >
                               <button
-                                onClick={() => { sfx.tap(); markDone(key); onOpenActivity(a) }}
+                                onClick={() => { sfx.tap(); markDone(key); onOpenActivity(a, s.id) }}
                                 className="flex flex-1 items-center gap-3 text-left active:scale-95"
                               >
                                 <span className="relative text-3xl">
@@ -273,13 +275,27 @@ function ChapterView({ chapterId, onOpenActivity, done, markDone, onClearChapter
   )
 }
 
+// Activité qui suit (session, activité) dans le chapitre, ou null en fin de chapitre.
+function nextActivity(chapter, sessionId, activityId) {
+  if (!chapter) return null
+  const flat = chapter.sessions.flatMap((s) => s.activities.map((a) => ({ a, sid: s.id })))
+  const i = flat.findIndex((x) => x.sid === sessionId && x.a.id === activityId)
+  return i >= 0 && i + 1 < flat.length ? flat[i + 1] : null
+}
+
 function Shell() {
   const ui = useUI()
   const { t } = useLang()
   const [chapterId, setChapterId] = useState(null)
-  const [activity, setActivity] = useState(null)
+  // { a: activité, sid: id de séance } — la séance sert au bouton Suivant
+  const [open, setOpen] = useState(null)
   const [done, setDone] = useState(() => loadDone())
   const [celebrate, setCelebrate] = useState(null) // chapitre qui vient d'être fini
+  // Référence stable : sinon l'effet de Celebration se relançait (fanfare +
+  // minuterie) à chaque re-rendu du Shell.
+  const endCelebrate = useCallback(() => setCelebrate(null), [])
+  const closeActivity = useCallback(() => setOpen(null), [])
+  const openActivity = useCallback((a, sid) => setOpen({ a, sid }), [])
 
   function markDone(key) {
     if (done.has(key)) return
@@ -301,9 +317,12 @@ function Shell() {
     setDone(next)
   }
 
+  const chapter = chapterId ? findChapter(chapterId) : null
+  const next = open ? nextActivity(chapter, open.sid, open.a.id) : null
+
   return (
     <div className="min-h-full pb-16">
-      <Header onHome={() => { setChapterId(null); setActivity(null) }} />
+      <Header onHome={() => { setChapterId(null); setOpen(null) }} />
 
       <div className="px-4 pt-4 sm:px-8">
         <VoiceNotice />
@@ -321,17 +340,24 @@ function Shell() {
       )}
 
       {chapterId ? (
-        <ChapterView chapterId={chapterId} onOpenActivity={setActivity} done={done} markDone={markDone} onClearChapter={clearChapter} />
+        <ChapterView chapterId={chapterId} onOpenActivity={openActivity} done={done} markDone={markDone} onClearChapter={clearChapter} />
       ) : (
         <Home onOpenChapter={setChapterId} done={done} />
       )}
 
-      {activity && <ActivityModal activity={activity} onClose={() => setActivity(null)} />}
+      {open && (
+        <ActivityModal
+          activity={open.a}
+          onClose={closeActivity}
+          next={next ? next.a : null}
+          onNext={() => { if (next) { markDone(`${next.sid}:${next.a.id}`); setOpen(next) } }}
+        />
+      )}
 
       {celebrate && (
         <Celebration
           title={`${t({ fr: 'Chapitre terminé !', en: 'Chapter complete!' })} ${t(celebrate.title)}`}
-          onDone={() => setCelebrate(null)}
+          onDone={endCelebrate}
         />
       )}
 

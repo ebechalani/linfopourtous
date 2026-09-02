@@ -14,7 +14,19 @@ const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 // Disposition d'un vrai clavier QWERTY, en 3 rangées.
 const QWERTY = ['QWERTYUIOP'.split(''), 'ASDFGHJKL'.split(''), 'ZXCVBNM'.split('')]
 const DICE = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅']
-const WORDS = ['CHAT', 'SOLEIL', 'MAISON', 'BALLON', 'FLEUR']
+// Mots courts, dans la langue de l'interface (le mode anglais montrait « FLEUR »).
+const WORDS = {
+  fr: ['CHAT', 'SOLEIL', 'MAISON', 'BALLON', 'FLEUR', 'LUNE', 'PAPA', 'MAMAN'],
+  en: ['CAT', 'SUN', 'HOUSE', 'BALL', 'FLOWER', 'MOON', 'DAD', 'MUM'],
+}
+
+// Tirage différent du précédent : sinon l'enfant qui vient de réussir croit
+// que sa réponse n'a pas été prise (le dé n'a pas bougé).
+function randomOther(min, max, not) {
+  let v
+  do { v = min + Math.floor(Math.random() * (max - min + 1)) } while (v === not && max > min)
+  return v
+}
 
 function Banner({ won, onReplay }) {
   const { t } = useLang()
@@ -30,6 +42,7 @@ function Banner({ won, onReplay }) {
 }
 
 // Clavier de lettres à l'écran, disposé comme un vrai clavier QWERTY.
+// Touches de 48×56 px : un doigt d'enfant sur le TBI (10 touches tiennent dans la modale).
 function LetterKeys({ onKey, highlight }) {
   return (
     <div className="mt-4 flex flex-col items-center gap-1.5">
@@ -39,7 +52,7 @@ function LetterKeys({ onKey, highlight }) {
             <button
               key={l}
               onClick={() => onKey(l)}
-              className={`h-11 w-9 rounded-lg text-lg font-bold shadow transition active:scale-90 sm:w-11 ${highlight === l ? 'bg-green-400 text-white ring-2 ring-green-200' : 'bg-white text-stone-700 hover:bg-violet-50'}`}
+              className={`h-14 w-11 rounded-lg text-xl font-bold shadow transition active:scale-90 sm:w-12 ${highlight === l ? 'bg-green-400 text-white ring-2 ring-green-200' : 'bg-white text-stone-700 hover:bg-violet-50'}`}
             >{l}</button>
           ))}
         </div>
@@ -57,7 +70,7 @@ function NumberKeys({ onKey, max = 9 }) {
         <button
           key={n}
           onClick={() => onKey(String(n))}
-          className="h-14 w-14 rounded-xl bg-white text-2xl font-bold text-stone-700 shadow transition hover:bg-violet-50 active:scale-90"
+          className="h-16 w-16 rounded-xl bg-white text-3xl font-bold text-stone-700 shadow transition hover:bg-violet-50 active:scale-90"
         >{n}</button>
       ))}
     </div>
@@ -105,8 +118,18 @@ function Baby() {
 function Falling({ mode }) {
   const { t, lang } = useLang()
   const GOAL = mode === 'word' ? 3 : 6
+  const pick = useCallback((prev) => {
+    if (mode === 'word') {
+      const list = WORDS[lang] || WORDS.fr
+      const others = list.filter((w) => w !== prev)
+      return others[Math.floor(Math.random() * others.length)]
+    }
+    const others = LETTERS.filter((l) => l !== prev)
+    return others[Math.floor(Math.random() * others.length)]
+  }, [mode, lang])
+
   const [y, setY] = useState(0)
-  const [target, setTarget] = useState(() => pick(mode))
+  const [target, setTarget] = useState(() => pick(null))
   const [idx, setIdx] = useState(0) // lettre courante dans le mot
   const [score, setScore] = useState(0)
   const [shake, setShake] = useState(false)
@@ -114,10 +137,9 @@ function Falling({ mode }) {
   const wonRef = useRef(false)
   wonRef.current = won
 
-  function pick(m) {
-    return m === 'word' ? WORDS[Math.floor(Math.random() * WORDS.length)]
-      : LETTERS[Math.floor(Math.random() * LETTERS.length)]
-  }
+  // changement de langue en cours de jeu : nouveau mot dans la bonne langue
+  useEffect(() => { setTarget((tg) => pick(tg)); setIdx(0); setY(0) }, [pick])
+
   const expected = mode === 'word' ? target[idx] : target
 
   // chute
@@ -125,12 +147,12 @@ function Falling({ mode }) {
     if (won) return
     const id = setInterval(() => {
       setY((v) => {
-        if (v >= 80) { setShake(true); setTimeout(() => setShake(false), 300); setTarget(pick(mode)); setIdx(0); return 0 }
+        if (v >= 80) { setShake(true); setTimeout(() => setShake(false), 300); setTarget((tg) => pick(tg)); setIdx(0); return 0 }
         return v + 4
       })
     }, 400)
     return () => clearInterval(id)
-  }, [won, mode])
+  }, [won, mode, pick])
 
   const hit = useCallback((k) => {
     if (wonRef.current) return
@@ -139,10 +161,10 @@ function Falling({ mode }) {
       if (mode === 'word' && idx < target.length - 1) { setIdx(idx + 1); return }
       // mot complet ou lettre simple réussie
       const s = score + 1
-      setScore(s); setY(0); setIdx(0); setTarget(pick(mode))
+      setScore(s); setY(0); setIdx(0); setTarget(pick(target))
       if (s >= GOAL) { sfx.win(); speak(t({ fr: 'Bravo !', en: 'Well done!' }), lang) }
-    } else { sfx.fail() }
-  }, [expected, idx, mode, score, target, lang, t])
+    } else { sfx.fail(); setShake(true); setTimeout(() => setShake(false), 250) }
+  }, [expected, idx, mode, score, target, lang, t, pick, GOAL])
 
   useEffect(() => {
     const onKey = (e) => { const k = e.key.toUpperCase(); if (LETTERS.includes(k)) hit(k) }
@@ -153,7 +175,7 @@ function Falling({ mode }) {
   return (
     <div className="flex flex-col items-center">
       <div className="mb-2 text-lg font-bold text-violet-600">⭐ {score}/{GOAL}</div>
-      <div className={`relative h-56 w-full max-w-xl overflow-hidden rounded-3xl bg-gradient-to-b from-indigo-50 to-violet-100 ring-4 ring-violet-200 ${shake ? 'animate-pulse' : ''}`}>
+      <div className={`relative h-56 w-full max-w-xl overflow-hidden rounded-3xl bg-gradient-to-b from-indigo-50 to-violet-100 ring-4 transition ${shake ? 'animate-pulse ring-rose-300' : 'ring-violet-200'}`}>
         {!won ? (
           <div className="absolute left-1/2 flex -translate-x-1/2 gap-1 text-4xl font-extrabold" style={{ top: `${y}%` }}>
             {mode === 'word'
@@ -171,7 +193,7 @@ function Falling({ mode }) {
           : t({ fr: 'Tape la lettre avant qu’elle tombe.', en: 'Type the letter before it falls.' })}
       </p>
       <LetterKeys onKey={hit} highlight={expected} />
-      <Banner won={won} onReplay={() => { setScore(0); setY(0); setIdx(0); setTarget(pick(mode)) }} />
+      <Banner won={won} onReplay={() => { setScore(0); setY(0); setIdx(0); setTarget(pick(target)) }} />
     </div>
   )
 }
@@ -180,9 +202,10 @@ function Falling({ mode }) {
 function Dice() {
   const { t, lang } = useLang()
   const GOAL = 5
-  const [n, setN] = useState(() => 1 + Math.floor(Math.random() * 6))
+  const [n, setN] = useState(() => randomOther(1, 6, null))
   const [score, setScore] = useState(0)
   const [wrong, setWrong] = useState(false)
+  const [bump, setBump] = useState(false) // petit rebond du dé quand il change
   const won = score >= GOAL
 
   const answer = useCallback((k) => {
@@ -190,7 +213,8 @@ function Dice() {
     if (Number(k) === n) {
       sfx.tap(); setWrong(false)
       const s = score + 1; setScore(s)
-      setN(1 + Math.floor(Math.random() * 6))
+      setN(randomOther(1, 6, n))
+      setBump(true); setTimeout(() => setBump(false), 300)
       if (s >= GOAL) { sfx.win(); speak(t({ fr: 'Bravo !', en: 'Well done!' }), lang) }
     } else { sfx.fail(); setWrong(true) }
   }, [n, score, won, lang, t])
@@ -205,7 +229,7 @@ function Dice() {
     <div className="flex flex-col items-center">
       <div className="mb-2 text-lg font-bold text-violet-600">⭐ {score}/{GOAL}</div>
       {!won ? (
-        <div className="flex h-40 w-40 items-center justify-center rounded-3xl bg-rose-50 text-9xl ring-4 ring-rose-200">{DICE[n]}</div>
+        <div className={`flex h-40 w-40 items-center justify-center rounded-3xl bg-rose-50 text-9xl ring-4 ring-rose-200 transition-transform ${bump ? 'scale-110' : ''}`}>{DICE[n]}</div>
       ) : (
         <div className="flex h-40 w-40 items-center justify-center text-8xl">🏆</div>
       )}
@@ -213,7 +237,7 @@ function Dice() {
         {wrong ? t({ fr: 'Non, regarde le dé !', en: 'No, look at the dice!' }) : t({ fr: 'Tape le chiffre du dé.', en: 'Type the dice number.' })}
       </p>
       <NumberKeys onKey={answer} max={6} />
-      <Banner won={won} onReplay={() => { setScore(0); setN(1 + Math.floor(Math.random() * 6)) }} />
+      <Banner won={won} onReplay={() => { setScore(0); setN(randomOther(1, 6, n)) }} />
     </div>
   )
 }
@@ -222,8 +246,7 @@ function Dice() {
 function Count({ items }) {
   const { t, lang } = useLang()
   const GOAL = 4
-  const rand = () => 2 + Math.floor(Math.random() * 7) // 2..8
-  const [count, setCount] = useState(rand)
+  const [count, setCount] = useState(() => randomOther(2, 8, null))
   const [score, setScore] = useState(0)
   const [wrong, setWrong] = useState(false)
   const won = score >= GOAL
@@ -232,7 +255,7 @@ function Count({ items }) {
     if (won) return
     if (Number(k) === count) {
       sfx.tap(); setWrong(false)
-      const s = score + 1; setScore(s); setCount(rand())
+      const s = score + 1; setScore(s); setCount(randomOther(2, 8, count))
       if (s >= GOAL) { sfx.win(); speak(t({ fr: 'Bravo !', en: 'Well done!' }), lang) }
     } else { sfx.fail(); setWrong(true) }
   }, [count, score, won, lang, t])
@@ -257,7 +280,7 @@ function Count({ items }) {
         {wrong ? t({ fr: 'Compte encore !', en: 'Count again!' }) : t({ fr: 'Combien y en a-t-il ? Tape le nombre.', en: 'How many? Type the number.' })}
       </p>
       <NumberKeys onKey={answer} max={9} />
-      <Banner won={won} onReplay={() => { setScore(0); setCount(rand()) }} />
+      <Banner won={won} onReplay={() => { setScore(0); setCount(randomOther(2, 8, count)) }} />
     </div>
   )
 }

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { useLang } from '../i18n.jsx'
+import { useEffect, useRef, useState } from 'react'
+import { useLang, useUI } from '../i18n.jsx'
 import { sfx, speak } from '../sound.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -26,6 +26,8 @@ const CARDS = {
   right: { symbol: '↱', color: '#8b5cf6', label: { fr: 'Tourner à droite', en: 'Turn right' } },
 }
 
+const MAX_CARDS = 12
+
 // Niveaux. Le robot commence TOUJOURS orienté vers le haut (dir = 0 = Nord), donc
 // la flèche d'orientation part vers le haut. Tourner devient nécessaire dès le 3.
 // `par` = nombre de cartes à POSER pour la meilleure solution (sert aux étoiles).
@@ -46,6 +48,7 @@ const starsFor = (cards, par) => (cards <= par ? 3 : cards <= par + 2 ? 2 : 1)
 
 export default function MTinyRobot({ config = {} }) {
   const { t, lang } = useLang()
+  const ui = useUI()
   const level = LEVELS[config.level] || LEVELS[1]
   const tapMode = config.mode === 'tap' // Novice : un seul bouton « Avancer »
   const directMode = config.mode === 'direct' // chaque carte agit tout de suite
@@ -72,7 +75,7 @@ export default function MTinyRobot({ config = {} }) {
 
   useEffect(() => {
     reset()
-    return () => clearInterval(timer.current)
+    return () => { clearInterval(timer.current); clearTimeout(blockTimer.current) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config.level, config.mode])
 
@@ -81,6 +84,11 @@ export default function MTinyRobot({ config = {} }) {
     posRef.current = level.start
     dirRef.current = level.dir
     setProgram([]); setPos(level.start); setDir(level.dir); setRunning(false); setStatus('idle'); setRepeat(1)
+  }
+  // Stop du prof pendant l'exécution : on arrête le robot, on GARDE les cartes.
+  function stop() {
+    clearInterval(timer.current)
+    setRunning(false); setStatus('idle'); setPos(level.start); setDir(level.dir)
   }
 
   const isWall = (r, c) => level.walls.some((w) => same(w, [r, c]))
@@ -121,8 +129,17 @@ export default function MTinyRobot({ config = {} }) {
   }
 
   // ── Mode programme : on range les cartes puis Go ───────────────────────────
-  function add(card) { if (running) return; sfx.tap(); setStatus('idle'); setPos(level.start); setDir(level.dir); setProgram((p) => (p.length >= 12 ? p : [...p, card])) }
-  function removeAt(i) { if (running) return; setProgram((p) => p.filter((_, idx) => idx !== i)) }
+  function add(card) {
+    if (running) return
+    if (program.length >= MAX_CARDS) { sfx.fail(); flashBlocked(); return } // plafond atteint : on le dit
+    sfx.tap(); setStatus('idle'); setPos(level.start); setDir(level.dir)
+    setProgram((p) => [...p, card])
+  }
+  function removeAt(i) {
+    if (running) return
+    setStatus('idle'); setPos(level.start); setDir(level.dir) // le « Bravo » ne vaut plus
+    setProgram((p) => p.filter((_, idx) => idx !== i))
+  }
 
   function run() {
     if (running || program.length === 0) return
@@ -149,6 +166,7 @@ export default function MTinyRobot({ config = {} }) {
 
   const cell = 'clamp(46px, 12vw, 76px)'
   const palette = tapMode ? [] : Object.entries(CARDS)
+  const finished = (tapMode || directMode) && status === 'win' // partie finie : on invite à recommencer
 
   return (
     <div className="flex flex-col items-center gap-4">
@@ -184,7 +202,7 @@ export default function MTinyRobot({ config = {} }) {
       </div>
 
       {/* État (+ étoiles défi en mode programme) */}
-      <div className="min-h-[2.5rem] text-center text-lg font-bold">
+      <div className="min-h-[2.5rem] text-center text-lg font-bold" aria-live="polite">
         {status === 'win' && (
           <div className="text-green-600">
             {t({ fr: 'Bravo ! 🎉', en: 'Well done! 🎉' })}{!tapMode && !directMode && program.length > 0 && <> {'⭐'.repeat(starsFor(program.length, par))}</>}
@@ -199,24 +217,27 @@ export default function MTinyRobot({ config = {} }) {
         {status === 'fail' && <span className="text-rose-500">{t({ fr: 'Essaie encore !', en: 'Try again!' })}</span>}
         {status === 'idle' && !running && (
           blocked
-            ? <span className="text-rose-500">🚫 {t({ fr: 'Le robot ne peut pas aller par là !', en: 'The robot can’t go that way!' })}</span>
+            ? <span className="text-rose-500">🚫 {!tapMode && !directMode && program.length >= MAX_CARDS
+                ? t({ fr: 'Plus de place ! Enlève une carte.', en: 'No more room! Remove a card.' })
+                : t({ fr: 'Le robot ne peut pas aller par là !', en: 'The robot can’t go that way!' })}</span>
             : <span className="text-stone-500">{
                 tapMode ? t({ fr: 'Touche pour avancer', en: 'Tap to move forward' })
                   : directMode ? t({ fr: 'Appuie sur une carte : le robot bouge tout de suite', en: 'Press a card: the robot moves right away' })
                     : t({ fr: 'Range les cartes puis appuie sur Go', en: 'Line up the cards then press Go' })
               }</span>
         )}
+        {running && <span className="text-sky-500">🐼 …</span>}
       </div>
 
       {tapMode ? (
-        <button onClick={tapForward} className="flex items-center gap-2 rounded-full bg-emerald-500 px-10 py-4 text-2xl font-extrabold text-white shadow-lg transition hover:bg-emerald-600 active:scale-95">
+        <button onClick={tapForward} disabled={finished} className="flex items-center gap-2 rounded-full bg-emerald-500 px-10 py-4 text-2xl font-extrabold text-white shadow-lg transition hover:bg-emerald-600 active:scale-95 disabled:opacity-40">
           <span className="text-3xl font-black leading-none">↑</span> {t({ fr: 'Avancer', en: 'Forward' })}
         </button>
       ) : (
         <>
           {/* Suite de cartes (mode programme seulement) */}
           {!directMode && (
-            <div className="flex min-h-[60px] w-full max-w-xl flex-wrap items-center justify-center gap-2 rounded-2xl bg-sky-50 p-3 ring-2 ring-sky-200">
+            <div className="relative flex min-h-[60px] w-full max-w-xl flex-wrap items-center justify-center gap-2 rounded-2xl bg-sky-50 p-3 ring-2 ring-sky-200">
               {program.length === 0 && <span className="text-3xl opacity-30">➕</span>}
               {program.map((k, i) => (
                 <button key={i} onClick={() => removeAt(i)} disabled={running}
@@ -224,15 +245,21 @@ export default function MTinyRobot({ config = {} }) {
                   style={{ color: CARDS[k].color, '--tw-ring-color': CARDS[k].color }}
                   title={t(CARDS[k].label)}>{CARDS[k].symbol}</button>
               ))}
+              {program.length > 0 && (
+                <span className={`absolute -top-2 right-3 rounded-full px-2 text-[11px] font-bold ring-1 ring-sky-200 ${program.length >= MAX_CARDS ? 'bg-rose-100 text-rose-600' : 'bg-white text-stone-500'}`}>
+                  {program.length}/{MAX_CARDS}
+                </span>
+              )}
             </div>
           )}
 
           {/* Palette de cartes (façon set mTiny) */}
           <div className="flex flex-wrap justify-center gap-3">
             {palette.map(([key, card]) => (
-              <button key={key} onClick={() => (directMode ? stepDirect(key) : add(key))} disabled={running}
+              <button key={key} onClick={() => (directMode ? stepDirect(key) : add(key))} disabled={running || finished}
                 className="flex h-24 w-20 flex-col items-center justify-center gap-1 rounded-2xl bg-white shadow-md ring-4 transition hover:scale-105 active:scale-90 disabled:opacity-40"
-                style={{ '--tw-ring-color': card.color }}>
+                style={{ '--tw-ring-color': card.color }}
+                aria-label={t(card.label)}>
                 <span className="text-4xl font-black leading-none" style={{ color: card.color }}>{card.symbol}</span>
                 <span className="px-1 text-center text-[10px] font-bold leading-tight text-stone-600">{t(card.label)}</span>
               </button>
@@ -260,12 +287,19 @@ export default function MTinyRobot({ config = {} }) {
         </>
       )}
 
-      {/* Recommencer : disponible dans TOUS les modes (sinon le mode 3 ans
-          reste bloqué après la victoire) */}
-      <button onClick={reset} disabled={running}
-        className="rounded-full bg-stone-200 px-6 py-3 text-xl font-bold text-stone-700 shadow transition hover:bg-stone-300 active:scale-95 disabled:opacity-40">
-        ↺ {t({ fr: 'Recommencer', en: 'Reset' })}
-      </button>
+      {/* Recommencer : disponible dans TOUS les modes ; pendant l'exécution il
+          devient le Stop du prof (une boucle ×3 peut durer 27 s). */}
+      {running ? (
+        <button onClick={stop}
+          className="rounded-full bg-rose-500 px-6 py-3 text-xl font-bold text-white shadow transition hover:bg-rose-600 active:scale-95">
+          ⏹ {ui('stop')}
+        </button>
+      ) : (
+        <button onClick={reset}
+          className={`rounded-full px-6 py-3 text-xl font-bold shadow transition active:scale-95 ${finished ? 'bg-amber-400 text-white ring-4 ring-amber-200 hover:bg-amber-500' : 'bg-stone-200 text-stone-700 hover:bg-stone-300'}`}>
+          ↺ {t({ fr: 'Recommencer', en: 'Reset' })}
+        </button>
+      )}
 
       {/* Pont vers le vrai robot */}
       <p className="max-w-md text-center text-xs italic text-stone-500">

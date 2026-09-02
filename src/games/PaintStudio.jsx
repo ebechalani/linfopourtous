@@ -4,9 +4,13 @@ import { sfx } from '../sound.js'
 
 // Mini-atelier de dessin (chapitres 2 et 4 : « Dessins animés » et « Paint »).
 // Pensé tactile (TBI) : gros outils, grosses couleurs. Outils proches de Paint :
-// pinceau, ligne, rectangle, cercle, pot de peinture (remplissage), gomme.
+// pinceau, ligne, rectangle, cercle, pot de peinture (remplissage), gomme,
+// + Annuler (un tap malheureux avec le pot ne doit pas effacer tout le dessin).
 
+// Dimensions LOGIQUES de la toile. Le bitmap interne est multiplié par le
+// devicePixelRatio (TBI Windows réglés à 125-150 %) pour éviter les traits flous.
 const W = 640, H = 440
+const HISTORY_MAX = 12
 
 const COLORS = ['#ef4444', '#f97316', '#facc15', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', '#92400e', '#000000', '#ffffff']
 const SIZES = [6, 14, 26]
@@ -29,13 +33,18 @@ export default function PaintStudio({ activity }) {
   const { t } = useLang()
   const canvasRef = useRef(null)
   const ctxRef = useRef(null)
-  const snapshot = useRef(null) // ImageData avant un tracé de forme
+  const snapshot = useRef(null) // ImageData avant un tracé de forme (aperçu)
+  const history = useRef([]) // pile d'annulation (ImageData)
   const drawing = useRef(false)
   const start = useRef({ x: 0, y: 0 })
+  // facteur de résolution, figé au montage (le bitmap ne change plus ensuite)
+  const [scale] = useState(() => Math.min(2, (typeof window !== 'undefined' && window.devicePixelRatio) || 1))
+  const PW = Math.round(W * scale), PH = Math.round(H * scale)
 
   const [tool, setTool] = useState('brush')
   const [color, setColor] = useState('#3b82f6')
   const [size, setSize] = useState(SIZES[1])
+  const [canUndo, setCanUndo] = useState(false)
 
   // garde les valeurs courantes accessibles dans les handlers natifs
   const cur = useRef({ tool, color, size })
@@ -43,17 +52,38 @@ export default function PaintStudio({ activity }) {
 
   useEffect(() => {
     const ctx = canvasRef.current.getContext('2d', { willReadFrequently: true })
+    ctx.setTransform(scale, 0, 0, scale, 0, 0) // on dessine en coordonnées logiques
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
     ctxRef.current = ctx
-    clear()
+    paintWhite()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  function clear() {
+  function paintWhite() {
     const ctx = ctxRef.current
     ctx.fillStyle = '#ffffff'
     ctx.fillRect(0, 0, W, H)
+  }
+
+  // ── Annuler : on empile une photo de la toile avant chaque geste ──────────
+  function remember() {
+    const ctx = ctxRef.current
+    history.current.push(ctx.getImageData(0, 0, PW, PH))
+    if (history.current.length > HISTORY_MAX) history.current.shift()
+    setCanUndo(true)
+  }
+  function undo() {
+    const img = history.current.pop()
+    if (!img) return
+    ctxRef.current.putImageData(img, 0, 0)
+    setCanUndo(history.current.length > 0)
+    sfx.tap()
+  }
+  function clear() {
+    remember()
+    paintWhite()
+    sfx.tap()
   }
 
   function pos(e) {
@@ -66,17 +96,19 @@ export default function PaintStudio({ activity }) {
   }
 
   function down(e) {
-    e.preventDefault()
+    // seul le bouton principal dessine (le clic droit ouvrait le menu du navigateur)
+    if (e.button !== undefined && e.button !== 0) return
     const ctx = ctxRef.current
     const p = pos(e)
     start.current = p
     const { tool: tl, color: col, size: sz } = cur.current
 
+    remember()
     if (tl === 'fill') { floodFill(ctx, p.x, p.y, col); sfx.tap(); return }
 
     drawing.current = true
     if (tl === 'line' || tl === 'rect' || tl === 'circle') {
-      snapshot.current = ctx.getImageData(0, 0, W, H)
+      snapshot.current = ctx.getImageData(0, 0, PW, PH)
     } else {
       // pinceau / gomme : on pose un point tout de suite
       ctx.strokeStyle = tl === 'eraser' ? '#ffffff' : col
@@ -90,7 +122,6 @@ export default function PaintStudio({ activity }) {
 
   function move(e) {
     if (!drawing.current) return
-    e.preventDefault()
     const ctx = ctxRef.current
     const p = pos(e)
     const { tool: tl, color: col, size: sz } = cur.current
@@ -125,23 +156,26 @@ export default function PaintStudio({ activity }) {
     snapshot.current = null
   }
 
-  function floodFill(ctx, x, y, hex) {
-    const img = ctx.getImageData(0, 0, W, H)
+  // Remplissage en pixels PHYSIQUES (le bitmap est `scale` fois plus grand).
+  function floodFill(ctx, lx, ly, hex) {
+    const x = Math.min(PW - 1, Math.round(lx * scale))
+    const y = Math.min(PH - 1, Math.round(ly * scale))
+    const img = ctx.getImageData(0, 0, PW, PH)
     const d = img.data
-    const at = (x, y) => (y * W + x) * 4
+    const at = (x, y) => (y * PW + x) * 4
     const i0 = at(x, y)
     const tr = d[i0], tg = d[i0 + 1], tb = d[i0 + 2]
     const [fr, fg, fb] = hexToRgb(hex)
     if (tr === fr && tg === fg && tb === fb) return
     // Masque de visite : sans lui, un pixel repeint qui reste dans la tolérance
     // (clic sur un bord anti-crénelé) serait réempilé sans fin → onglet gelé.
-    const seen = new Uint8Array(W * H)
+    const seen = new Uint8Array(PW * PH)
     const match = (i) => Math.abs(d[i] - tr) < 24 && Math.abs(d[i + 1] - tg) < 24 && Math.abs(d[i + 2] - tb) < 24
     const stack = [[x, y]]
     while (stack.length) {
       const [cx, cy] = stack.pop()
-      if (cx < 0 || cy < 0 || cx >= W || cy >= H) continue
-      const p = cy * W + cx
+      if (cx < 0 || cy < 0 || cx >= PW || cy >= PH) continue
+      const p = cy * PW + cx
       if (seen[p]) continue
       seen[p] = 1
       const i = at(cx, cy)
@@ -161,11 +195,12 @@ export default function PaintStudio({ activity }) {
         <span className="text-stone-600">{t(activity?.title)}</span>
       </div>
 
-      {/* Toile */}
+      {/* Toile. `touch-none` empêche le défilement pendant le tracé (React attache
+          les écouteurs touch en passif : un preventDefault n'y ferait rien). */}
       <canvas
         ref={canvasRef}
-        width={W}
-        height={H}
+        width={PW}
+        height={PH}
         onMouseDown={down}
         onMouseMove={move}
         onMouseUp={up}
@@ -173,24 +208,27 @@ export default function PaintStudio({ activity }) {
         onTouchStart={down}
         onTouchMove={move}
         onTouchEnd={up}
+        onContextMenu={(e) => e.preventDefault()}
         className="w-full max-w-2xl touch-none rounded-2xl bg-white shadow-inner ring-4 ring-violet-200"
         style={{ aspectRatio: `${W} / ${H}` }}
       />
 
-      {/* Couleurs */}
+      {/* Couleurs (48 px : un doigt d'enfant) */}
       <div className="flex flex-wrap justify-center gap-2">
         {COLORS.map((c) => (
           <button
             key={c}
-            onClick={() => { setColor(c); if (tool === 'eraser' || tool === 'fill') setTool('brush') }}
-            className={`h-9 w-9 rounded-full shadow transition active:scale-90 ${color === c ? 'ring-4 ring-violet-400' : 'ring-2 ring-stone-200'}`}
+            // choisir une couleur quitte la gomme, mais garde le pot : c'est le
+            // geste naturel de Paint (couleur puis remplir)
+            onClick={() => { setColor(c); if (tool === 'eraser') setTool('brush') }}
+            className={`h-12 w-12 rounded-full shadow transition active:scale-90 ${color === c ? 'ring-4 ring-violet-400' : 'ring-2 ring-stone-200'}`}
             style={{ backgroundColor: c }}
             aria-label={c}
           />
         ))}
       </div>
 
-      {/* Outils + tailles + effacer */}
+      {/* Outils + tailles + annuler / effacer */}
       <div className="flex flex-wrap items-center justify-center gap-2">
         {TOOLS.map((tl) => (
           <button
@@ -198,6 +236,8 @@ export default function PaintStudio({ activity }) {
             onClick={() => setTool(tl.id)}
             className={`flex h-12 w-12 items-center justify-center rounded-xl text-2xl shadow transition active:scale-90 ${tool === tl.id ? 'bg-violet-500 ring-2 ring-violet-300' : 'bg-white hover:bg-violet-50'}`}
             title={t(tl.label)}
+            aria-label={t(tl.label)}
+            aria-pressed={tool === tl.id}
           >{tl.glyph}</button>
         ))}
         <span className="mx-1 h-8 w-px bg-stone-200" />
@@ -207,13 +247,19 @@ export default function PaintStudio({ activity }) {
             onClick={() => setSize(s)}
             className={`flex h-12 w-12 items-center justify-center rounded-xl bg-white shadow transition active:scale-90 ${size === s ? 'ring-2 ring-violet-400' : ''}`}
             title={t({ fr: 'Taille', en: 'Size' })}
+            aria-label={`${t({ fr: 'Taille', en: 'Size' })} ${i + 1}`}
           >
             <span className="rounded-full bg-stone-700" style={{ width: 6 + i * 8, height: 6 + i * 8 }} />
           </button>
         ))}
         <span className="mx-1 h-8 w-px bg-stone-200" />
         <button
-          onClick={() => { clear(); sfx.tap() }}
+          onClick={undo}
+          disabled={!canUndo}
+          className="flex h-12 items-center gap-1 rounded-xl bg-amber-100 px-4 text-lg font-bold text-amber-700 shadow transition hover:bg-amber-200 active:scale-90 disabled:opacity-40"
+        >↩️ {t({ fr: 'Annuler', en: 'Undo' })}</button>
+        <button
+          onClick={clear}
           className="flex h-12 items-center gap-1 rounded-xl bg-rose-100 px-4 text-lg font-bold text-rose-600 shadow transition hover:bg-rose-200 active:scale-90"
         >🗑️ {t({ fr: 'Effacer', en: 'Clear' })}</button>
       </div>
