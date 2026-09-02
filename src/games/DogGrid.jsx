@@ -17,6 +17,8 @@ const MOVES = {
   right: { dr: 0, dc: 1, glyph: '➡️', label: { fr: 'Droite', en: 'Right' } },
 }
 
+const MAX_MOVES = 10
+
 // Niveaux : du plus facile (0 = un seul pas) au plus difficile.
 // `par` = nombre de flèches à POSER pour la meilleure solution (sert aux étoiles).
 const LEVELS = {
@@ -75,7 +77,7 @@ export default function DogGrid({ config = {} }) {
 
   useEffect(() => {
     reset()
-    return () => clearInterval(timer.current)
+    return () => { clearInterval(timer.current); clearTimeout(blockTimer.current) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config.level, config.mode])
 
@@ -87,6 +89,13 @@ export default function DogGrid({ config = {} }) {
     setRunning(false)
     setStatus('idle')
     setRepeat(1)
+  }
+  // Stop du prof pendant l'exécution : on arrête le héros, on GARDE le programme.
+  function stop() {
+    clearInterval(timer.current)
+    setRunning(false)
+    setStatus('idle')
+    setPos(level.start)
   }
 
   const isWall = (r, c) => level.walls.some((w) => same(w, [r, c]))
@@ -109,13 +118,16 @@ export default function DogGrid({ config = {} }) {
   // ── Mode programme : on range les flèches puis Go ──────────────────────────
   function addMove(key) {
     if (running) return
+    if (program.length >= MAX_MOVES) { sfx.fail(); flashBlocked(); return } // plafond atteint : on le dit
     sfx.tap()
     setStatus('idle')
     setPos(level.start)
-    setProgram((p) => (p.length >= 10 ? p : [...p, key]))
+    setProgram((p) => [...p, key])
   }
   function removeAt(i) {
     if (running) return
+    setStatus('idle') // le « Bravo » ne vaut plus pour le programme modifié
+    setPos(level.start)
     setProgram((p) => p.filter((_, idx) => idx !== i))
   }
   function run() {
@@ -151,6 +163,7 @@ export default function DogGrid({ config = {} }) {
   }
 
   const isFootprint = (r, c) => footprints.some((p) => same(p, [r, c]))
+  const finishedDirect = direct && status === 'win' // en mode direct, la partie est finie : on invite à recommencer
 
   // ── Rendu ──────────────────────────────────────────────────────────────────
   const cell = 'clamp(44px, 11vw, 76px)'
@@ -188,7 +201,7 @@ export default function DogGrid({ config = {} }) {
       </div>
 
       {/* Bandeau d'état (+ étoiles défi en mode programme) */}
-      <div className="min-h-[2.5rem] text-center font-bold">
+      <div className="min-h-[2.5rem] text-center font-bold" aria-live="polite">
         {status === 'win' && (
           <div className="text-xl text-green-600">
             {ui('win')}{!direct && program.length > 0 && <> {'⭐'.repeat(starsFor(program.length, par))}</>}
@@ -203,14 +216,17 @@ export default function DogGrid({ config = {} }) {
         {status === 'fail' && <span className="text-xl text-rose-500">{ui('tryAgain')}</span>}
         {status === 'idle' && !running && (
           blocked
-            ? <span className="text-xl text-rose-500">🚫 {t({ fr: 'On ne peut pas aller par là !', en: 'Can’t go that way!' })}</span>
+            ? <span className="text-xl text-rose-500">🚫 {program.length >= MAX_MOVES && !direct
+                ? t({ fr: 'Plus de place ! Enlève une flèche.', en: 'No more room! Remove an arrow.' })
+                : t({ fr: 'On ne peut pas aller par là !', en: 'Can’t go that way!' })}</span>
             : <span className="text-xl text-stone-500">{direct ? t({ fr: 'Appuie sur une flèche', en: 'Press an arrow' }) : ui('buildProgram')}</span>
         )}
+        {running && <span className="text-xl text-violet-500">🐾 …</span>}
       </div>
 
       {/* Programme (mode programme seulement) */}
       {!direct && (
-        <div className="flex min-h-[60px] w-full max-w-xl flex-wrap items-center justify-center gap-2 rounded-2xl bg-violet-50 p-3 ring-2 ring-violet-200">
+        <div className="relative flex min-h-[60px] w-full max-w-xl flex-wrap items-center justify-center gap-2 rounded-2xl bg-violet-50 p-3 ring-2 ring-violet-200">
           {program.length === 0 && <span className="text-3xl opacity-30">➕</span>}
           {program.map((k, i) => (
             <button
@@ -221,6 +237,11 @@ export default function DogGrid({ config = {} }) {
               title={t(MOVES[k].label)}
             >{MOVES[k].glyph}</button>
           ))}
+          {program.length > 0 && (
+            <span className={`absolute -top-2 right-3 rounded-full px-2 text-[11px] font-bold ${program.length >= MAX_MOVES ? 'bg-rose-100 text-rose-600' : 'bg-white text-stone-500'} ring-1 ring-violet-200`}>
+              {program.length}/{MAX_MOVES}
+            </span>
+          )}
         </div>
       )}
 
@@ -230,7 +251,7 @@ export default function DogGrid({ config = {} }) {
           <button
             key={key}
             onClick={() => (direct ? step(key) : addMove(key))}
-            disabled={running}
+            disabled={running || finishedDirect}
             className="flex h-16 w-16 items-center justify-center rounded-2xl bg-violet-500 text-3xl text-white shadow-lg transition hover:bg-violet-600 active:scale-90 disabled:opacity-40"
             aria-label={t(m.label)}
           >{m.glyph}</button>
@@ -253,7 +274,8 @@ export default function DogGrid({ config = {} }) {
         </div>
       )}
 
-      {/* Boutons d'action */}
+      {/* Boutons d'action. Pendant l'exécution, Recommencer devient le Stop du
+          prof (une boucle ×3 peut durer 20 s). */}
       <div className="flex gap-3">
         {!direct && (
           <button
@@ -262,11 +284,17 @@ export default function DogGrid({ config = {} }) {
             className="rounded-full bg-green-500 px-8 py-3 text-2xl font-extrabold text-white shadow-lg transition hover:bg-green-600 active:scale-95 disabled:opacity-40"
           >▶ {ui('run')}</button>
         )}
-        <button
-          onClick={reset}
-          disabled={running}
-          className="rounded-full bg-stone-200 px-6 py-3 text-xl font-bold text-stone-700 shadow transition hover:bg-stone-300 active:scale-95 disabled:opacity-40"
-        >↺ {ui('reset')}</button>
+        {running ? (
+          <button
+            onClick={stop}
+            className="rounded-full bg-rose-500 px-6 py-3 text-xl font-bold text-white shadow transition hover:bg-rose-600 active:scale-95"
+          >⏹ {ui('stop')}</button>
+        ) : (
+          <button
+            onClick={reset}
+            className={`rounded-full px-6 py-3 text-xl font-bold shadow transition active:scale-95 ${finishedDirect ? 'bg-amber-400 text-white ring-4 ring-amber-200 hover:bg-amber-500' : 'bg-stone-200 text-stone-700 hover:bg-stone-300'}`}
+          >↺ {ui('reset')}</button>
+        )}
       </div>
     </div>
   )

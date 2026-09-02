@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect } from 'react'
 
 const LangContext = createContext(null)
 
@@ -28,6 +28,14 @@ export const UI = {
   buildProgram: { fr: 'Range les flèches puis appuie sur Go', en: 'Line up the arrows then press Go' },
   level: { fr: 'Niveau', en: 'Level' },
   siteBy: { fr: 'Site créé par', en: 'Site by' },
+  listenLabel: { fr: 'Écouter la consigne', en: 'Listen to the instruction' },
+  soundOn: { fr: 'Activer le son', en: 'Turn sound on' },
+  soundOff: { fr: 'Couper le son', en: 'Turn sound off' },
+  fullscreen: { fr: 'Plein écran', en: 'Full screen' },
+  exitFullscreen: { fr: 'Quitter le plein écran', en: 'Exit full screen' },
+  next: { fr: 'Suivant', en: 'Next' },
+  stop: { fr: 'Stop', en: 'Stop' },
+  pageTitle: { fr: 'Linfopourtous · Maternelle', en: 'Linfopourtous · Kindergarten' },
   basedOn: { fr: 'D’après le manuel KG (2023) de', en: 'Based on the KG book (2023) by' },
   publishedBy: { fr: 'publié par', en: 'published by' },
 }
@@ -40,6 +48,12 @@ export function LangProvider({ children }) {
     return entry[lang] ?? entry.fr ?? ''
   }, [lang])
   const toggle = useCallback(() => setLang((l) => (l === 'fr' ? 'en' : 'fr')), [])
+  // La langue de la page suit la bascule : lecteurs d'écran, correcteurs et
+  // synthèse vocale du navigateur s'y fient ; le titre de l'onglet aussi.
+  useEffect(() => {
+    document.documentElement.lang = lang
+    document.title = UI.pageTitle[lang]
+  }, [lang])
   return (
     <LangContext.Provider value={{ lang, setLang, toggle, t }}>
       {children}

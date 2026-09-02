@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useLang, useUI } from '../i18n.jsx'
 import SpeakButton from './SpeakButton.jsx'
 import ComingSoon from './ComingSoon.jsx'
@@ -13,16 +13,29 @@ import KeyboardGame from '../games/KeyboardGame.jsx'
 import PaintStudio from '../games/PaintStudio.jsx'
 import PuzzleGame from '../games/PuzzleGame.jsx'
 import ScratchBlocks from '../games/ScratchBlocks.jsx'
+import { sfx } from '../sound.js'
 
-export default function ActivityModal({ activity, onClose }) {
+// `next` (optionnel) = { activity, label } : l'activité suivante de la séance,
+// pour enchaîner au tableau sans repasser par la liste.
+export default function ActivityModal({ activity, onClose, next, onNext }) {
   const { t } = useLang()
   const ui = useUI()
+  const closeRef = useRef(null)
 
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose()
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
+
+  // Le fond ne doit pas défiler derrière la modale (petits doigts qui glissent),
+  // et le focus part sur la croix : Échap / Entrée ferment tout de suite.
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    closeRef.current?.focus({ preventScroll: true })
+    return () => { document.body.style.overflow = prev }
+  }, [activity])
 
   if (!activity) return null
   const title = t(activity.title)
@@ -34,6 +47,7 @@ export default function ActivityModal({ activity, onClose }) {
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/50 p-3 backdrop-blur-sm sm:p-6"
       role="dialog"
       aria-modal="true"
+      aria-label={title}
     >
       <div className="my-auto w-full max-w-2xl rounded-3xl bg-white p-5 shadow-2xl sm:p-7">
         <div className="mb-4 flex items-center gap-3">
@@ -41,38 +55,56 @@ export default function ActivityModal({ activity, onClose }) {
           <h2 className="flex-1 text-2xl font-extrabold text-stone-800">{title}</h2>
           <SpeakButton text={`${title}. ${t(activity.desc)}`} />
           <button
+            ref={closeRef}
             onClick={onClose}
             aria-label={ui('close')}
+            title={ui('close')}
             className="flex h-12 w-12 items-center justify-center rounded-full bg-stone-100 text-2xl shadow transition hover:bg-rose-100 active:scale-90"
           >
             ✕
           </button>
         </div>
 
-        {activity.type === 'unplugged' ? (
-          <UnpluggedCard activity={activity} />
-        ) : activity.parts ? (
-          <PartsCard parts={activity.parts} />
-        ) : activity.type === 'mtiny' ? (
-          <MTinyRobot config={activity.dog} />
-        ) : activity.type === 'tiny' ? (
-          <TinyGame variant={activity.variant} config={activity.tiny} />
-        ) : activity.type === 'dog-grid' ? (
-          <DogGrid config={activity.dog} />
-        ) : activity.type === 'arrow-pick' ? (
-          <ArrowPick config={activity.dog} />
-        ) : activity.type === 'mouse' ? (
-          <MouseGame variant={activity.variant} config={activity} />
-        ) : activity.type === 'keyboard' ? (
-          <KeyboardGame variant={activity.variant} config={activity.kb} />
-        ) : activity.type === 'paint' ? (
-          <PaintStudio activity={activity} />
-        ) : activity.type === 'puzzle' ? (
-          <PuzzleGame variant={activity.variant} />
-        ) : activity.type === 'scratch' ? (
-          <ScratchBlocks config={activity.sc} />
-        ) : (
-          <ComingSoon activity={activity} />
+        {/* La clé force un composant neuf quand on enchaîne deux activités du
+            même type (sinon l'état du jeu précédent resterait). */}
+        <div key={`${activity.type}:${activity.id}:${t(activity.title)}`}>
+          {activity.type === 'unplugged' ? (
+            <UnpluggedCard activity={activity} />
+          ) : activity.parts ? (
+            <PartsCard parts={activity.parts} />
+          ) : activity.type === 'mtiny' ? (
+            <MTinyRobot config={activity.dog} />
+          ) : activity.type === 'tiny' ? (
+            <TinyGame variant={activity.variant} config={activity.tiny} />
+          ) : activity.type === 'dog-grid' ? (
+            <DogGrid config={activity.dog} />
+          ) : activity.type === 'arrow-pick' ? (
+            <ArrowPick config={activity.dog} />
+          ) : activity.type === 'mouse' ? (
+            <MouseGame variant={activity.variant} config={activity} />
+          ) : activity.type === 'keyboard' ? (
+            <KeyboardGame variant={activity.variant} config={activity.kb} />
+          ) : activity.type === 'paint' ? (
+            <PaintStudio activity={activity} />
+          ) : activity.type === 'puzzle' ? (
+            <PuzzleGame variant={activity.variant} />
+          ) : activity.type === 'scratch' ? (
+            <ScratchBlocks config={activity.sc} />
+          ) : (
+            <ComingSoon activity={activity} />
+          )}
+        </div>
+
+        {/* Enchaîner : l'activité suivante de la séance, sans revenir à la liste */}
+        {next && (
+          <div className="no-print mt-5 flex justify-end border-t border-stone-100 pt-4">
+            <button
+              onClick={() => { sfx.tap(); onNext?.(next) }}
+              className="flex items-center gap-2 rounded-full bg-violet-100 px-5 py-2.5 text-base font-bold text-violet-700 shadow-sm ring-2 ring-violet-200 transition hover:bg-violet-200 active:scale-95"
+            >
+              {ui('next')} <span className="text-xl">{next.emoji}</span> <span className="max-w-[14rem] truncate">{t(next.title)}</span> ▶
+            </button>
+          </div>
         )}
       </div>
     </div>

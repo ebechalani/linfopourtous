@@ -8,6 +8,7 @@ import { sfx, speak } from '../sound.js'
 // « sauter » et « dire » comme dans ScratchJr.
 
 const STEP = 16 // pas de déplacement en %
+const MAX_BLOCKS = 8
 
 const BLOCKS = {
   right: { glyph: '➡️', color: 'bg-blue-500', label: { fr: 'Droite', en: 'Right' } },
@@ -29,18 +30,34 @@ export default function ScratchBlocks({ config = {} }) {
   const [pos, setPos] = useState({ x: 12, y: 60 })
   const [bubble, setBubble] = useState('')
   const [running, setRunning] = useState(false)
+  const [full, setFull] = useState(false) // signal : plus de place pour un bloc
   const timer = useRef(null)
+  const extra = useRef([]) // retombée du saut, fin de la bulle : à couper aussi
+
+  function clearTimers() {
+    clearTimeout(timer.current)
+    extra.current.forEach(clearTimeout)
+    extra.current = []
+  }
 
   // À la fermeture de la modale : couper la chaîne de timeouts et la voix,
   // sinon les bips et le « Bonjour ! » continuent par-dessus la parole du prof.
   useEffect(() => () => {
-    clearTimeout(timer.current)
+    clearTimers()
     if (typeof window !== 'undefined' && window.speechSynthesis) window.speechSynthesis.cancel()
   }, [])
 
-  function add(k) { if (running) return; sfx.tap(); setProgram((p) => (p.length >= 8 ? p : [...p, k])) }
+  function add(k) {
+    if (running) return
+    if (program.length >= MAX_BLOCKS) {
+      sfx.fail(); setFull(true); extra.current.push(setTimeout(() => setFull(false), 500)); return
+    }
+    sfx.tap(); setProgram((p) => [...p, k])
+  }
   function removeAt(i) { if (running) return; setProgram((p) => p.filter((_, idx) => idx !== i)) }
-  function reset() { clearTimeout(timer.current); setRunning(false); setProgram([]); setPos({ x: 12, y: 60 }); setBubble('') }
+  function reset() { clearTimers(); setRunning(false); setProgram([]); setPos({ x: 12, y: 60 }); setBubble('') }
+  // Stop du prof : on arrête, on garde les blocs.
+  function stop() { clearTimers(); setRunning(false); setPos({ x: 12, y: 60 }); setBubble('') }
 
   function run() {
     if (running || program.length === 0) return
@@ -58,11 +75,11 @@ export default function ScratchBlocks({ config = {} }) {
       else if (k === 'jump') {
         const base = p.y
         setPos({ ...p, y: clamp(base - STEP * 1.6) })
-        setTimeout(() => setPos({ ...p, y: base }), 320)
+        extra.current.push(setTimeout(() => setPos({ ...p, y: base }), 320))
       } else if (k === 'say') {
         const txt = t({ fr: 'Bonjour !', en: 'Hello!' })
         setBubble(txt); speak(txt, lang)
-        setTimeout(() => setBubble(''), 1200)
+        extra.current.push(setTimeout(() => setBubble(''), 1200))
       }
       if (k !== 'jump') setPos(p)
       timer.current = setTimeout(tick, 700)
@@ -84,20 +101,26 @@ export default function ScratchBlocks({ config = {} }) {
       </div>
 
       {/* Programme (suite de blocs) */}
-      <div className="flex min-h-[60px] w-full max-w-xl flex-wrap items-center justify-center gap-2 rounded-2xl bg-stone-50 p-3 ring-2 ring-stone-200">
+      <div className={`relative flex min-h-[60px] w-full max-w-xl flex-wrap items-center justify-center gap-2 rounded-2xl p-3 ring-2 transition ${full ? 'bg-rose-50 ring-rose-300' : 'bg-stone-50 ring-stone-200'}`}>
         {program.length === 0 && <span className="text-stone-600">{t({ fr: 'Ajoute des blocs puis appuie sur le drapeau', en: 'Add blocks then press the flag' })}</span>}
         {program.map((k, i) => (
           <button key={i} onClick={() => removeAt(i)} disabled={running}
             className={`flex h-12 w-12 items-center justify-center rounded-xl ${BLOCKS[k].color} text-2xl text-white shadow transition hover:opacity-80 active:scale-90`}
             title={t(BLOCKS[k].label)}>{BLOCKS[k].glyph}</button>
         ))}
+        {program.length > 0 && (
+          <span className={`absolute -top-2 right-3 rounded-full px-2 text-[11px] font-bold ring-1 ring-stone-200 ${program.length >= MAX_BLOCKS ? 'bg-rose-100 text-rose-600' : 'bg-white text-stone-500'}`}>
+            {program.length}/{MAX_BLOCKS}
+          </span>
+        )}
       </div>
 
       {/* Palette de blocs */}
       <div className="flex flex-wrap justify-center gap-2">
         {palette.map((k) => (
           <button key={k} onClick={() => add(k)} disabled={running}
-            className={`flex h-16 w-16 flex-col items-center justify-center rounded-2xl ${BLOCKS[k].color} text-white shadow-lg transition hover:scale-105 active:scale-90 disabled:opacity-40`}>
+            className={`flex h-16 w-16 flex-col items-center justify-center rounded-2xl ${BLOCKS[k].color} text-white shadow-lg transition hover:scale-105 active:scale-90 disabled:opacity-40`}
+            aria-label={t(BLOCKS[k].label)}>
             <span className="text-2xl">{BLOCKS[k].glyph}</span>
             <span className="text-[10px] font-bold">{t(BLOCKS[k].label)}</span>
           </button>
@@ -110,11 +133,18 @@ export default function ScratchBlocks({ config = {} }) {
           className="rounded-full bg-green-500 px-8 py-3 text-2xl font-extrabold text-white shadow-lg transition hover:bg-green-600 active:scale-95 disabled:opacity-40">
           🚩 {t({ fr: 'Go !', en: 'Go!' })}
         </button>
-        {/* Actif même pendant l'exécution : c'est le bouton « stop » du prof. */}
-        <button onClick={reset}
-          className="rounded-full bg-stone-200 px-6 py-3 text-xl font-bold text-stone-700 shadow transition hover:bg-stone-300 active:scale-95">
-          ↺ {t({ fr: 'Recommencer', en: 'Reset' })}
-        </button>
+        {/* Pendant l'exécution : le bouton « stop » du prof (garde les blocs). */}
+        {running ? (
+          <button onClick={stop}
+            className="rounded-full bg-rose-500 px-6 py-3 text-xl font-bold text-white shadow transition hover:bg-rose-600 active:scale-95">
+            ⏹ {t({ fr: 'Stop', en: 'Stop' })}
+          </button>
+        ) : (
+          <button onClick={reset}
+            className="rounded-full bg-stone-200 px-6 py-3 text-xl font-bold text-stone-700 shadow transition hover:bg-stone-300 active:scale-95">
+            ↺ {t({ fr: 'Recommencer', en: 'Reset' })}
+          </button>
+        )}
       </div>
     </div>
   )

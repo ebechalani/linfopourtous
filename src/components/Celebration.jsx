@@ -24,9 +24,12 @@ export default function Celebration({ title, onDone }) {
     return () => clearTimeout(id)
   }, [onDone])
 
+  // Respect de « réduire les animations » : pas de pluie de confettis.
+  const reduced = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center overflow-hidden" onClick={onDone}>
-      {pieces.map((p, i) => (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center overflow-hidden" onClick={onDone} role="status">
+      {!reduced && pieces.map((p, i) => (
         <span
           key={i}
           className="absolute top-0 rounded-sm"

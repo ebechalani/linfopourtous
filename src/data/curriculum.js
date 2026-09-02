@@ -1,14 +1,17 @@
 ﻿// Programme Numérique - Maternelle (G0 / KG), d'après les manuels 2023.
-// Chaque activité a un `type` qui décide du composant interactif :
-//   'info'      -> carte d'information (parties de l'ordi, l'ordi partout…)
-//   'dog-grid'  -> jeu d'algorithme directionnel (le chien / le bonhomme) — JOUABLE
-//   'mouse'     -> mini-jeu souris (à venir)
-//   'keyboard'  -> mini-jeu clavier (à venir)
-//   'paint'     -> mini-Paint (à venir)
-//   'puzzle'    -> puzzle / miroir / suite logique (à venir)
-//   'scratch'   -> activité type ScratchJr (à venir)
-//
-// `dog` (optionnel sur une activité dog-grid) configure le niveau du jeu.
+// Chaque activité a un `type` qui décide du composant interactif (tous jouables) :
+//   'info'       -> fiche illustrée cliquable (`parts`) ou carte de découverte
+//   'tiny'       -> jeux « un seul toucher » pour les 3 ans (variant: pop, stamp, keys, scribble, tapwalk, dance)
+//   'mouse'      -> mini-jeu souris (variant: duck, reveal, catch, dots, sides, double)
+//   'keyboard'   -> mini-jeu clavier (variant: baby, letter-fall, word-fall, dice, count ; `kb.items`)
+//   'dog-grid'   -> algorithme à flèches absolues (`dog`: level 0-8, mode 'direct', hint, loop, hero, goal, showCoords)
+//   'arrow-pick' -> « quelle flèche ? » (`dog.hero`, `dog.goal`)
+//   'paint'      -> atelier Paint (modèle = emoji + titre)
+//   'puzzle'     -> variant: sequence, match, tangram, mirror, order
+//   'scratch'    -> blocs type ScratchJr (`sc.hero`, `sc.say`)
+//   'mtiny'      -> robot mTiny à commandes relatives (`dog`: level 1-6, mode 'tap' | 'direct', loop, goal)
+//   'unplugged'  -> fiche prof débranchée (objective, materials, steps, duration, link)
+// Niveau (levels.js) : `age: 3` ou `lvl: 'tot'|'beg'|'pro'` ; sinon déduit du type/config.
 
 export const CHAPTERS = [
   {
@@ -58,7 +61,7 @@ export const CHAPTERS = [
           { id: 'a', type: 'mouse', variant: 'reveal', emoji: '🧱', title: { fr: 'Qu’y a-t-il derrière les briques ?', en: 'What is behind the bricks?' },
             desc: { fr: 'Passe la souris sur les briques vertes pour découvrir l’animal.', en: 'Move the mouse over the green bricks to find the animal.' } },
           { id: 'b', type: 'dog-grid', emoji: '🐶', title: { fr: 'Le chien et son repas', en: 'Move the dog to the food' },
-            desc: { fr: 'Range les flèches en suivant les empreintes 🐾.', en: 'Arrange the arrows following the footprints 🐾.' }, dog: { level: 2, hint: true } },
+            desc: { fr: 'Range les flèches en suivant les empreintes 🐾.', en: 'Arrange the arrows following the footprints 🐾.' }, dog: { level: 2, hint: true, goal: '🍖' } },
         ],
       },
       {
@@ -71,7 +74,7 @@ export const CHAPTERS = [
           { id: 'b', type: 'mouse', variant: 'dots', emoji: '✏️', title: { fr: 'Clique et dessine', en: 'Click and draw' },
             desc: { fr: 'Clique sur les points verts dans l’ordre pour dessiner.', en: 'Click the green dots in order to draw.' } },
           { id: 'c', type: 'dog-grid', emoji: '🐶', title: { fr: 'Le chien et son repas', en: 'Move the dog to the food' },
-            desc: { fr: 'Conduis le chien jusqu’à sa nourriture.', en: 'Lead the dog to the food.' }, dog: { level: 3 } },
+            desc: { fr: 'Conduis le chien jusqu’à sa nourriture.', en: 'Lead the dog to the food.' }, dog: { level: 3, goal: '🥣' } },
         ],
       },
       {
@@ -85,7 +88,7 @@ export const CHAPTERS = [
           { id: 'b', type: 'puzzle', variant: 'match', emoji: '🧩', title: { fr: 'Complète le puzzle', en: 'Complete the puzzle' },
             desc: { fr: 'Place chaque objet sur sa bonne ombre.', en: 'Place each object onto its matching shadow.' } },
           { id: 'c', type: 'dog-grid', emoji: '🐶', title: { fr: 'Le chien et son repas', en: 'Move the dog to the food' },
-            desc: { fr: 'Conduis le chien jusqu’à sa nourriture.', en: 'Lead the dog to the food.' }, dog: { level: 4 } },
+            desc: { fr: 'Conduis le chien jusqu’à sa nourriture.', en: 'Lead the dog to the food.' }, dog: { level: 4, goal: '🍗' } },
         ],
       },
       {
@@ -107,11 +110,25 @@ export const CHAPTERS = [
           en: ['Learn where computers are used', 'Discover the keyboard keys', 'Solve a simple algorithm'] },
         activities: [
           { id: 'a', type: 'info', emoji: '🏥', title: { fr: 'L’ordinateur dans la vie', en: 'Computers in real life' },
-            desc: { fr: 'Hôtel, aéroport, hôpital, usine, école : où voit-on un ordinateur ?', en: 'Hotel, airport, hospital, factory, school: where do we see computers?' } },
+            desc: { fr: 'Hôtel, aéroport, hôpital, usine, école : où voit-on un ordinateur ? Touche un lieu pour l’entendre.', en: 'Hotel, airport, hospital, factory, school: where do we see computers? Tap a place to hear it.' },
+            parts: [
+              { emoji: '🏫', color: '#6d28d9', name: { fr: 'À l’école', en: 'At school' },
+                desc: { fr: 'Pour apprendre et jouer, comme nous !', en: 'To learn and play, like us!' } },
+              { emoji: '🏥', color: '#dc2626', name: { fr: 'À l’hôpital', en: 'At the hospital' },
+                desc: { fr: 'Pour soigner et regarder dans le corps.', en: 'To heal and look inside the body.' } },
+              { emoji: '✈️', color: '#0284c7', name: { fr: 'À l’aéroport', en: 'At the airport' },
+                desc: { fr: 'Pour guider les avions dans le ciel.', en: 'To guide the planes in the sky.' } },
+              { emoji: '🏨', color: '#d97706', name: { fr: 'À l’hôtel', en: 'At the hotel' },
+                desc: { fr: 'Pour savoir quelle chambre est libre.', en: 'To know which room is free.' } },
+              { emoji: '🏭', color: '#57534e', name: { fr: 'À l’usine', en: 'At the factory' },
+                desc: { fr: 'Pour faire travailler les machines.', en: 'To make the machines work.' } },
+              { emoji: '🏠', color: '#16a34a', name: { fr: 'À la maison', en: 'At home' },
+                desc: { fr: 'Pour regarder des dessins animés et appeler mamie.', en: 'To watch cartoons and call grandma.' } },
+            ] },
           { id: 'b', type: 'keyboard', variant: 'baby', emoji: '🔡', title: { fr: 'Bébé clavier', en: 'Baby keyboard' },
             desc: { fr: 'Appuie sur une lettre pour l’entendre et la voir.', en: 'Press a letter to hear it and see it.' } },
           { id: 'c', type: 'dog-grid', emoji: '🐶', title: { fr: 'Le chien et son repas', en: 'Move the dog to the food' },
-            desc: { fr: 'Conduis le chien jusqu’à sa nourriture.', en: 'Lead the dog to the food.' }, dog: { level: 6 } },
+            desc: { fr: 'Conduis le chien jusqu’à sa nourriture.', en: 'Lead the dog to the food.' }, dog: { level: 6, goal: '🍖' } },
         ],
       },
       {
@@ -181,39 +198,45 @@ export const CHAPTERS = [
             desc: { fr: 'Touche une touche pour voir et entendre un animal.', en: 'Tap a key to see and hear an animal.' } },
           { id: 'a', type: 'keyboard', variant: 'letter-fall', emoji: '🅰️', title: { fr: 'Lettres simples', en: 'Simple letters' },
             desc: { fr: 'Tape la lettre avant qu’elle ne touche le sol.', en: 'Type the letter before it hits the ground.' } },
-          { id: 'b', type: 'dog-grid', emoji: '🐶', title: { fr: 'Le chien et son repas', en: 'Move the dog to the food' },
-            desc: { fr: 'Conduis le chien jusqu’à sa nourriture.', en: 'Lead the dog to the food.' }, dog: { level: 3 } },
+          // Même exercice d'algorithme qu'au ch.1, mais un héros différent à
+          // chaque séance : on garde l'attention des enfants.
+          { id: 'b', type: 'dog-grid', emoji: '🐱', title: { fr: 'Le chat et le poisson', en: 'The cat and the fish' },
+            desc: { fr: 'Range les flèches pour conduire le chat jusqu’au poisson.', en: 'Arrange the arrows to lead the cat to the fish.' }, dog: { level: 3, hero: '🐱', goal: '🐟' } },
         ] },
       { id: 'ch3-s2', title: { fr: 'Les mots qui tombent', en: 'Falling words' },
         objectives: { fr: ['Taper des mots', 'Tracer les chiffres'], en: ['Type words', 'Draw numbers'] },
         activities: [
           { id: 'a', type: 'keyboard', variant: 'word-fall', emoji: '🔠', title: { fr: 'Mots qui tombent', en: 'Falling words' },
             desc: { fr: 'Tape les lettres du mot avant qu’il ne tombe.', en: 'Type the word’s letters before it falls.' } },
-          { id: 'b', type: 'dog-grid', emoji: '🐶', title: { fr: 'Le chien et son repas', en: 'Move the dog to the food' },
-            desc: { fr: 'Conduis le chien jusqu’à sa nourriture.', en: 'Lead the dog to the food.' }, dog: { level: 4 } },
+          { id: 'b', type: 'dog-grid', emoji: '🐰', title: { fr: 'Le lapin et la carotte', en: 'The rabbit and the carrot' },
+            desc: { fr: 'Range les flèches pour conduire le lapin jusqu’à la carotte.', en: 'Arrange the arrows to lead the rabbit to the carrot.' }, dog: { level: 4, hero: '🐰', goal: '🥕' } },
         ] },
       { id: 'ch3-s3', title: { fr: 'Compter les nombres', en: 'Counting numbers' },
         objectives: { fr: ['Compter avec GCompris', 'Suivre la suite des nombres', 'Ranger les nombres dans l’ordre'],
           en: ['Count with GCompris', 'Follow the number sequence', 'Order the numbers'] },
         activities: [
-          { id: 'a', type: 'keyboard', variant: 'count', emoji: '🔵', title: { fr: 'Compte et colorie', en: 'Count and colour' },
+          { id: 'a', type: 'keyboard', variant: 'count', emoji: '🔵', title: { fr: 'Compte les ronds', en: 'Count the circles' },
             desc: { fr: 'Compte les ronds puis tape le bon nombre.', en: 'Count the circles then type the number.' } },
-          { id: 'b', type: 'dog-grid', emoji: '🐶', title: { fr: 'Le chien et son repas', en: 'Move the dog to the food' },
-            desc: { fr: 'Conduis le chien jusqu’à sa nourriture.', en: 'Lead the dog to the food.' }, dog: { level: 5 } },
+          { id: 'b', type: 'dog-grid', emoji: '🐵', title: { fr: 'Le singe et la banane', en: 'The monkey and the banana' },
+            desc: { fr: 'Range les flèches pour conduire le singe jusqu’à la banane.', en: 'Arrange the arrows to lead the monkey to the banana.' }, dog: { level: 5, hero: '🐵', goal: '🍌' } },
         ] },
       { id: 'ch3-s4', title: { fr: 'Compter et trouver le chemin', en: 'Counting and finding the path' },
         objectives: { fr: ['Compter des objets', 'Construire un algorithme pour trouver un chemin'],
           en: ['Count items', 'Build an algorithm to find a path'] },
         activities: [
-          { id: 'a', type: 'keyboard', variant: 'count', emoji: '🍎', title: { fr: 'Compte les pommes', en: 'Count the items' },
+          { id: 'a', type: 'keyboard', variant: 'count', emoji: '🍎', title: { fr: 'Compte les pommes', en: 'Count the apples' },
             desc: { fr: 'Compte les pommes puis tape le bon nombre.', en: 'Count the apples then type the number.' }, kb: { items: '🍎' } },
-          { id: 'b', type: 'dog-grid', emoji: '🐶', title: { fr: 'Le chien et son repas', en: 'Move the dog to the food' },
-            desc: { fr: 'Conduis le chien jusqu’à sa nourriture.', en: 'Lead the dog to the food.' }, dog: { level: 6 } },
+          { id: 'b', type: 'dog-grid', emoji: '🐻', title: { fr: 'L’ours et le miel', en: 'The bear and the honey' },
+            desc: { fr: 'Range les flèches pour conduire l’ours jusqu’au miel, sans toucher les murs.', en: 'Arrange the arrows to lead the bear to the honey, avoiding the walls.' }, dog: { level: 6, hero: '🐻', goal: '🍯' } },
         ] },
       { id: 'ch3-s5', title: { fr: 'Le chemin du pingouin', en: 'Path finder' },
         objectives: { fr: ['Déplacer le pingouin sur un chemin', 'Résoudre un algorithme simple'],
           en: ['Move the penguin on a path', 'Solve a simple algorithm'] },
         activities: [
+          // 🌱 un seul pas : cause → effet, pour les plus petits
+          { id: 'tot', type: 'dog-grid', age: 3, emoji: '🐧', title: { fr: 'Un pas vers le drapeau', en: 'One step to the flag' },
+            desc: { fr: 'Touche la flèche ➡️ : le pingouin fait un pas jusqu’au drapeau.', en: 'Tap the ➡️ arrow: the penguin takes one step to the flag.' },
+            dog: { level: 0, mode: 'direct', hero: '🐧', goal: '🚩' } },
           { id: 'a', type: 'dog-grid', emoji: '🐧', title: { fr: 'Le pingouin et le drapeau', en: 'Penguin to the flag' },
             desc: { fr: 'Range les flèches pour amener le pingouin au drapeau.', en: 'Arrange the arrows to bring the penguin to the flag.' },
             dog: { level: 7, hero: '🐧', goal: '🚩' } },
@@ -292,9 +315,21 @@ export const CHAPTERS = [
           en: ['Discover the steps to draw a flower', 'Draw the penguin’s path', 'Solve an algorithm'] },
         activities: [
           { id: 'a', type: 'info', emoji: '🌼', title: { fr: 'Les 5 étapes de la fleur', en: 'The 5 steps of the flower' },
-            desc: { fr: 'On suit les étapes 1→5 pour dessiner une fleur.', en: 'Follow steps 1→5 to draw a flower.' } },
+            desc: { fr: 'On suit les étapes 1→5 pour dessiner une fleur : un algorithme ! Touche chaque étape pour l’entendre.', en: 'Follow steps 1→5 to draw a flower: that is an algorithm! Tap each step to hear it.' },
+            parts: [
+              { emoji: '1️⃣', color: '#16a34a', name: { fr: 'La tige', en: 'The stem' },
+                desc: { fr: 'Une grande ligne verte, de bas en haut.', en: 'A tall green line, from bottom to top.' } },
+              { emoji: '2️⃣', color: '#65a30d', name: { fr: 'Les feuilles', en: 'The leaves' },
+                desc: { fr: 'Deux feuilles, une de chaque côté.', en: 'Two leaves, one on each side.' } },
+              { emoji: '3️⃣', color: '#f59e0b', name: { fr: 'Le cœur', en: 'The centre' },
+                desc: { fr: 'Un rond jaune tout en haut.', en: 'A yellow circle at the top.' } },
+              { emoji: '4️⃣', color: '#db2777', name: { fr: 'Les pétales', en: 'The petals' },
+                desc: { fr: 'Des ronds tout autour du cœur.', en: 'Circles all around the centre.' } },
+              { emoji: '5️⃣', color: '#6d28d9', name: { fr: 'Les couleurs', en: 'The colours' },
+                desc: { fr: 'On remplit avec le pot de peinture.', en: 'Fill in with the paint bucket.' } },
+            ] },
           { id: 'b', type: 'dog-grid', emoji: '🐧', title: { fr: 'Le chemin du pingouin', en: 'The penguin’s path' },
-            desc: { fr: 'Clique les cases vertes dans l’ordre des flèches.', en: 'Click the green squares in the arrows’ order.' },
+            desc: { fr: 'Range les flèches pour amener le pingouin au drapeau, puis appuie sur Go.', en: 'Arrange the arrows to bring the penguin to the flag, then press Go.' },
             dog: { level: 4, hero: '🐧', goal: '🚩' } },
           { id: 'c', type: 'dog-grid', emoji: '🔁', title: { fr: 'Répète : l’escalier', en: 'Repeat: the staircase' },
             desc: { fr: 'Range « droite » puis « monte », et répète ×3 pour grimper l’escalier.', en: 'Line up “right” then “up”, and repeat ×3 to climb the staircase.' },

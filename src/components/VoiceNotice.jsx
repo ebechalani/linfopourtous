@@ -4,10 +4,22 @@ import { hasVoice } from '../sound.js'
 
 // Prévient le prof si aucune voix de la langue courante n'est installée :
 // sans elle, le site se tait (mieux que prononcer le français à l'anglaise).
+// Le prof qui a fermé le bandeau ne doit pas le revoir à chaque chargement :
+// on mémorise la fermeture par langue.
+const KEY = (lang) => `lipt-voice-notice-${lang}`
+const wasDismissed = (lang) => { try { return localStorage.getItem(KEY(lang)) === '1' } catch { return false } }
+
 export default function VoiceNotice() {
   const { t, lang } = useLang()
   const [missing, setMissing] = useState(false)
-  const [dismissed, setDismissed] = useState(false)
+  const [dismissed, setDismissed] = useState(() => wasDismissed(lang))
+
+  useEffect(() => { setDismissed(wasDismissed(lang)) }, [lang])
+
+  function dismiss() {
+    setDismissed(true)
+    try { localStorage.setItem(KEY(lang), '1') } catch { /* ignore */ }
+  }
 
   useEffect(() => {
     // getVoices() est vide au premier rendu : on attend 'voiceschanged'.
@@ -34,13 +46,13 @@ export default function VoiceNotice() {
         </div>
         <div className="text-amber-700">
           {lang === 'fr'
-            ? 'Les consignes ne seront pas lues à voix haute. Pour l’activer : Paramètres Windows › Heure et langue › Voix › Ajouter des voix › Français.'
-            : 'Instructions will not be read aloud. To enable: Windows Settings › Time & language › Speech › Add voices.'}
+            ? 'Les consignes ne seront pas lues à voix haute. Pour l’activer : Paramètres Windows › Heure et langue › Voix › Ajouter des voix › Français, puis rouvrir le site. Le reste du site fonctionne normalement.'
+            : 'Instructions will not be read aloud. To enable: Windows Settings › Time & language › Speech › Add voices › English, then reopen the site. Everything else works normally.'}
         </div>
       </div>
       <button
-        onClick={() => setDismissed(true)}
-        className="rounded-full px-2 text-lg font-bold text-amber-500 hover:text-amber-700"
+        onClick={dismiss}
+        className="rounded-full px-3 py-1 text-lg font-bold text-amber-600 hover:text-amber-800"
         aria-label={t({ fr: 'Fermer', en: 'Close' })}
       >
         ✕

@@ -79,7 +79,7 @@ function Stamp() {
       <div
         ref={area}
         onClick={place}
-        className="relative h-80 w-full max-w-xl cursor-pointer overflow-hidden rounded-3xl bg-white ring-4 ring-pink-200"
+        className="relative h-80 w-full max-w-xl cursor-pointer touch-none overflow-hidden rounded-3xl bg-white ring-4 ring-pink-200"
       >
         {marks.map((m) => (
           <span key={m.id} className="absolute text-4xl" style={{ left: `${m.x}%`, top: `${m.y}%`, transform: 'translate(-50%,-50%)' }}>{m.e}</span>
@@ -146,10 +146,11 @@ function Scribble() {
     const pt = e.touches ? e.touches[0] : e
     return { x: ((pt.clientX - r.left) / r.width) * W, y: ((pt.clientY - r.top) / r.height) * H }
   }
-  function start(e) { e.preventDefault(); drawing.current = true; const ctx = canvasRef.current.getContext('2d'); const p = xy(e); ctx.beginPath(); ctx.moveTo(p.x, p.y) }
+  // Pas de preventDefault ici : React attache les écouteurs touch en passif
+  // (ça n'aurait aucun effet et inonderait la console). `touch-none` suffit.
+  function start(e) { if (e.button !== undefined && e.button !== 0) return; drawing.current = true; const ctx = canvasRef.current.getContext('2d'); const p = xy(e); ctx.beginPath(); ctx.moveTo(p.x, p.y) }
   function move(e) {
     if (!drawing.current) return
-    e.preventDefault()
     const ctx = canvasRef.current.getContext('2d')
     const p = xy(e)
     hue.current = (hue.current + 8) % 360
@@ -165,7 +166,8 @@ function Scribble() {
         ref={canvasRef} width={W} height={H}
         onMouseDown={start} onMouseMove={move} onMouseUp={end} onMouseLeave={end}
         onTouchStart={start} onTouchMove={move} onTouchEnd={end}
-        className="w-full max-w-2xl touch-none rounded-2xl bg-white shadow-inner ring-4 ring-rainbow ring-violet-200"
+        onContextMenu={(e) => e.preventDefault()}
+        className="w-full max-w-2xl touch-none rounded-2xl bg-white shadow-inner ring-4 ring-violet-200"
         style={{ aspectRatio: `${W} / ${H}` }}
       />
       <button onClick={clear} className="rounded-full bg-rose-100 px-5 py-2 text-lg font-bold text-rose-600 shadow active:scale-95">

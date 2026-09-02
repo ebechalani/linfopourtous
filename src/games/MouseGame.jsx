@@ -9,6 +9,7 @@ import { sfx, speak } from '../sound.js'
 //   dots   : cliquer dans l'ordre (relier les points)
 //   sides  : clic gauche / clic droit
 //   double : double-clic (le penalty)
+// Tout est aussi jouable au doigt sur le TBI (balayage, double-tap, appui long).
 
 function Banner({ won, onReplay }) {
   const { t } = useLang()
@@ -57,11 +58,12 @@ function Duck() {
 
   return (
     <div className="flex flex-col items-center">
+      {/* touch-none : sinon le glissé du doigt fait défiler la page derrière */}
       <div
         ref={area}
         onMouseMove={move}
         onTouchMove={move}
-        className="relative h-72 w-full max-w-xl cursor-pointer overflow-hidden rounded-3xl bg-gradient-to-b from-sky-100 to-green-100 ring-4 ring-sky-200"
+        className="relative h-72 w-full max-w-xl cursor-pointer touch-none overflow-hidden rounded-3xl bg-gradient-to-b from-sky-100 to-green-100 ring-4 ring-sky-200"
       >
         <div className="absolute text-5xl" style={{ left: `${target.x}%`, top: `${target.y}%`, transform: 'translate(-50%,-50%)' }}>🌊</div>
         <div className="absolute text-4xl transition-all duration-100" style={{ left: `${p.x}%`, top: `${p.y}%`, transform: 'translate(-50%,-50%)' }}>{won ? '🦆💕' : '🦆'}</div>
@@ -90,14 +92,25 @@ function Reveal() {
     setOpen((o) => { if (o[i]) return o; sfx.tap(); const n = [...o]; n[i] = true; return n })
   }
 
+  // Au doigt ou au stylet, les événements restent sur la brique touchée en
+  // premier : on regarde quelle brique est SOUS le pointeur pour balayer.
+  function sweep(e) {
+    if (e.pointerType === 'mouse') return // la souris a déjà onMouseEnter
+    const el = document.elementFromPoint(e.clientX, e.clientY)
+    const i = el?.dataset?.brick
+    if (i != null) reveal(Number(i))
+  }
+
   return (
     <div className="flex flex-col items-center">
       <div className="relative rounded-3xl bg-green-50 p-3 ring-4 ring-green-200">
         <div className="absolute inset-0 flex items-center justify-center text-7xl">{animal}</div>
-        <div className="relative grid gap-1.5" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
+        <div className="relative grid touch-none gap-1.5" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}
+          onPointerMove={sweep} onPointerDown={sweep}>
           {open.map((isOpen, i) => (
             <div
               key={i}
+              data-brick={i}
               onMouseEnter={() => reveal(i)}
               onClick={() => reveal(i)}
               className={`flex h-16 w-16 items-center justify-center rounded-lg text-2xl transition-all duration-200 ${isOpen ? 'scale-0 opacity-0' : 'bg-green-400 shadow'}`}
@@ -105,7 +118,7 @@ function Reveal() {
           ))}
         </div>
       </div>
-      <p className="mt-3 text-center text-stone-500">{t({ fr: 'Passe la souris sur les briques vertes.', en: 'Move the mouse over the green bricks.' })}</p>
+      <p className="mt-3 text-center text-stone-500">{t({ fr: 'Passe la souris (ou le doigt) sur les briques vertes.', en: 'Move the mouse (or your finger) over the green bricks.' })}</p>
       <Banner won={won} onReplay={() => setOpen(Array(total).fill(false))} />
     </div>
   )
@@ -139,7 +152,7 @@ function Catch() {
       <div className="mb-2 text-xl font-bold text-sky-600">{'🐟'.repeat(score)}{'·'.repeat(Math.max(0, TARGET - score))} {score}/{TARGET}</div>
       <div className="relative h-72 w-full max-w-xl overflow-hidden rounded-3xl bg-gradient-to-b from-sky-200 to-sky-400 ring-4 ring-sky-200">
         {!won && (
-          <button onClick={grab} className="absolute text-5xl transition-all duration-300 hover:scale-110 active:scale-90" style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: 'translate(-50%,-50%)' }}>🐟</button>
+          <button onClick={grab} aria-label="🐟" className="absolute p-2 text-5xl transition-all duration-300 hover:scale-110 active:scale-90" style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: 'translate(-50%,-50%)' }}>🐟</button>
         )}
         {won && <div className="absolute inset-0 flex items-center justify-center text-7xl">🎉</div>}
       </div>
@@ -159,12 +172,18 @@ const STAR = [
 function Dots() {
   const { t, lang } = useLang()
   const [n, setN] = useState(0)
+  const [wrong, setWrong] = useState(null)
   const won = n >= STAR.length
 
   useEffect(() => {
     if (won) { sfx.win(); speak(t({ fr: 'Bravo !', en: 'Well done!' }), lang) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [won])
+
+  function tap(i) {
+    if (i === n) { sfx.tap(); setN(n + 1) }
+    else if (i > n) { sfx.fail(); setWrong(i); setTimeout(() => setWrong(null), 400) }
+  }
 
   const pts = STAR.slice(0, n).map((p) => `${p.x},${p.y}`).join(' ')
   return (
@@ -173,11 +192,12 @@ function Dots() {
         <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full">
           <polyline points={pts + (won ? ` ${STAR[0].x},${STAR[0].y}` : '')} fill={won ? '#fde047' : 'none'} stroke="#f59e0b" strokeWidth="2" strokeLinejoin="round" />
         </svg>
+        {/* points de 56 px : assez gros pour un doigt d'enfant */}
         {STAR.map((p, i) => (
           <button
             key={i}
-            onClick={() => { if (i === n) { sfx.tap(); setN(n + 1) } }}
-            className={`absolute flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold shadow transition ${i < n ? 'bg-amber-400 text-white' : i === n ? 'animate-pulse bg-green-400 text-white ring-4 ring-green-200' : 'bg-white text-stone-400'}`}
+            onClick={() => tap(i)}
+            className={`absolute flex h-14 w-14 items-center justify-center rounded-full text-lg font-extrabold shadow transition ${i < n ? 'bg-amber-400 text-white' : i === n ? 'animate-pulse bg-green-400 text-white ring-4 ring-green-200' : wrong === i ? 'bg-rose-200 text-rose-600' : 'bg-white text-stone-500'}`}
             style={{ left: `${p.x}%`, top: `${p.y}%`, transform: 'translate(-50%,-50%)' }}
           >{i + 1}</button>
         ))}
@@ -201,21 +221,25 @@ function Sides() {
   }, [won])
 
   return (
-    <div className="flex flex-col items-center gap-4">
+    // Aucun menu contextuel du navigateur ne doit surgir au tableau, où que
+    // l'enfant fasse son clic droit (ou son appui long).
+    <div className="flex flex-col items-center gap-4" onContextMenu={(e) => e.preventDefault()}>
       <div className="grid w-full max-w-xl grid-cols-2 gap-4">
         <div className="flex flex-col items-center gap-2 rounded-3xl bg-sky-50 p-5 ring-2 ring-sky-200">
-          <span className="rounded-full bg-sky-200 px-3 py-1 text-sm font-bold text-sky-700">{t({ fr: 'Clic GAUCHE', en: 'LEFT click' })}</span>
+          <span className="rounded-full bg-sky-200 px-3 py-1 text-sm font-bold text-sky-700">🖱️⬅️ {t({ fr: 'Clic GAUCHE', en: 'LEFT click' })}</span>
           <button
             onClick={() => { if (!fish) { sfx.tap(); setFish(true) } }}
-            className="text-6xl transition active:scale-90"
+            onContextMenu={() => { if (!fish) sfx.fail() }}
+            className="p-2 text-6xl transition active:scale-90"
           >{fish ? '🐟✅' : '🐟'}</button>
           <span className="text-3xl">{fish ? '🏞️' : '🌊'}</span>
         </div>
         <div className="flex flex-col items-center gap-2 rounded-3xl bg-amber-50 p-5 ring-2 ring-amber-200">
-          <span className="rounded-full bg-amber-200 px-3 py-1 text-sm font-bold text-amber-700">{t({ fr: 'Clic DROIT', en: 'RIGHT click' })}</span>
+          <span className="rounded-full bg-amber-200 px-3 py-1 text-sm font-bold text-amber-700">🖱️➡️ {t({ fr: 'Clic DROIT', en: 'RIGHT click' })}</span>
           <button
-            onContextMenu={(e) => { e.preventDefault(); if (!monkey) { sfx.tap(); setMonkey(true) } }}
-            className="text-6xl transition active:scale-90"
+            onContextMenu={() => { if (!monkey) { sfx.tap(); setMonkey(true) } }}
+            onClick={() => { if (!monkey) sfx.fail() }}
+            className="p-2 text-6xl transition active:scale-90"
           >{monkey ? '🐒✅' : '🐒'}</button>
           <span className="text-3xl">{monkey ? '🌳' : '🌴'}</span>
         </div>
@@ -230,13 +254,28 @@ function Sides() {
 function DoubleClick() {
   const { t, lang } = useLang()
   const [kicked, setKicked] = useState(false)
+  const lastTap = useRef(0)
+
+  function kick() {
+    if (kicked) return
+    setKicked(true); sfx.win(); speak(t({ fr: 'But !', en: 'Goal!' }), lang)
+  }
+  // Filet pour les écrans tactiles qui n'émettent pas de dblclick : deux taps
+  // rapprochés (< 450 ms) comptent comme un double-clic.
+  function tap() {
+    const now = performance.now()
+    if (now - lastTap.current < 450) { lastTap.current = 0; kick() }
+    else { lastTap.current = now; sfx.tap() }
+  }
+
   return (
     <div className="flex flex-col items-center">
-      <div className="relative h-72 w-full max-w-xl overflow-hidden rounded-3xl bg-gradient-to-b from-green-300 to-green-500 ring-4 ring-green-200">
+      <div className="relative h-72 w-full max-w-xl touch-none overflow-hidden rounded-3xl bg-gradient-to-b from-green-300 to-green-500 ring-4 ring-green-200">
         <div className="absolute right-6 top-1/2 -translate-y-1/2 text-6xl">🥅</div>
         <button
-          onDoubleClick={() => { if (!kicked) { setKicked(true); sfx.win(); speak(t({ fr: 'But !', en: 'Goal!' }), lang) } }}
-          className="absolute bottom-8 left-10 text-5xl transition-all duration-700 active:scale-90"
+          onDoubleClick={kick}
+          onClick={tap}
+          className="absolute bottom-8 left-10 p-2 text-5xl transition-all duration-700 active:scale-90"
           style={kicked ? { left: '78%', bottom: '45%' } : {}}
         >⚽</button>
         {kicked && <div className="absolute left-1/2 top-6 -translate-x-1/2 text-3xl font-extrabold text-white drop-shadow">{t({ fr: 'BUT ! ⚽', en: 'GOAL! ⚽' })}</div>}

@@ -43,6 +43,8 @@ function Sequence() {
     ['🍓', '🍇', '🍓', '🍇', '🍓', '🍇'],
     ['🔴', '🔵', '🔴', '🔵', '🔴', '🔵'],
     ['⭐', '🌙', '⭐', '🌙', '⭐', '🌙'],
+    ['🍎', '🍎', '🍌', '🍎', '🍎', '🍌'],
+    ['🔴', '🔵', '🟢', '🔴', '🔵', '🟢'],
   ]
   const [round, setRound] = useState(() => patterns[Math.floor(Math.random() * patterns.length)])
   const hideAt = round.length - 1
@@ -55,6 +57,12 @@ function Sequence() {
     if (won) return
     if (o === answer) { sfx.win(); speak(t({ fr: 'Bravo !', en: 'Well done!' }), lang); setWon(true) }
     else { sfx.fail(); setWrong(o); setTimeout(() => setWrong(null), 500) }
+  }
+  function replay() {
+    setWon(false)
+    // un motif différent du précédent, sinon l'enfant croit que rien n'a changé
+    const others = patterns.filter((p) => p !== round)
+    setRound(others[Math.floor(Math.random() * others.length)])
   }
 
   return (
@@ -72,11 +80,11 @@ function Sequence() {
           <button
             key={o}
             onClick={() => pick(o)}
-            className={`flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-4xl shadow ring-2 transition active:scale-90 ${wrong === o ? 'ring-rose-400' : 'ring-violet-200 hover:bg-violet-50'}`}
+            className={`flex h-20 w-20 items-center justify-center rounded-2xl bg-white text-4xl shadow ring-2 transition active:scale-90 ${wrong === o ? 'ring-rose-400' : 'ring-violet-200 hover:bg-violet-50'}`}
           >{o}</button>
         ))}
       </div>
-      <Banner won={won} onReplay={() => { setWon(false); setRound(patterns[Math.floor(Math.random() * patterns.length)]) }} />
+      <Banner won={won} onReplay={replay} />
     </div>
   )
 }
@@ -85,10 +93,11 @@ function Sequence() {
 function Match() {
   const { t, lang } = useLang()
   const POOL = ['🐶', '🐱', '🐰', '🦊', '🐸', '🐵']
-  const [items] = useState(() => shuffle(POOL).slice(0, 4))
+  const [items, setItems] = useState(() => shuffle(POOL).slice(0, 4))
   const slots = useMemo(() => shuffle(items), [items])
   const [picked, setPicked] = useState(null)       // image choisie
   const [placed, setPlaced] = useState({})          // {emoji: true}
+  const [hint, setHint] = useState(false)           // « choisis d'abord une image »
   const won = Object.keys(placed).length === items.length
 
   useEffect(() => {
@@ -97,28 +106,18 @@ function Match() {
   }, [won])
 
   function tapSlot(s) {
-    if (!picked) return
+    if (placed[s]) return
+    if (!picked) { // ombre touchée avant l'image : on montre où toucher d'abord
+      sfx.tap(); setHint(true); setTimeout(() => setHint(false), 700); return
+    }
     if (picked === s) { sfx.tap(); setPlaced((p) => ({ ...p, [s]: true })); setPicked(null) }
     else { sfx.fail(); setPicked(null) }
   }
 
   return (
     <div className="flex flex-col items-center gap-5">
-      {/* Ombres (cibles) */}
-      <div className="flex flex-wrap justify-center gap-3">
-        {slots.map((s) => (
-          <button
-            key={s}
-            onClick={() => tapSlot(s)}
-            className={`flex h-20 w-20 items-center justify-center rounded-2xl text-5xl ring-2 transition active:scale-95 ${placed[s] ? 'bg-green-50 ring-green-300' : 'bg-stone-800 ring-stone-300 hover:ring-violet-400'}`}
-          >
-            <span style={placed[s] ? {} : { filter: 'brightness(0)' }}>{s}</span>
-          </button>
-        ))}
-      </div>
-      <p className="text-stone-500">{t({ fr: 'Touche une image, puis son ombre.', en: 'Tap a picture, then its shadow.' })}</p>
-      {/* Images à placer */}
-      <div className="flex flex-wrap justify-center gap-3">
+      {/* Images à placer (en haut : c'est le 1er geste) */}
+      <div className={`flex min-h-24 flex-wrap justify-center gap-3 rounded-3xl p-2 transition ${hint ? 'animate-pulse ring-4 ring-violet-400' : ''}`}>
         {items.filter((it) => !placed[it]).map((it) => (
           <button
             key={it}
@@ -127,16 +126,37 @@ function Match() {
           >{it}</button>
         ))}
       </div>
-      <Banner won={won} onReplay={() => { setPlaced({}); setPicked(null) }} />
+      <p className="text-stone-500">{t({ fr: 'Touche une image, puis son ombre.', en: 'Tap a picture, then its shadow.' })}</p>
+      {/* Ombres (cibles) : silhouette noire sur fond clair, visible de loin */}
+      <div className="flex flex-wrap justify-center gap-3">
+        {slots.map((s) => (
+          <button
+            key={s}
+            onClick={() => tapSlot(s)}
+            className={`flex h-20 w-20 items-center justify-center rounded-2xl text-5xl ring-2 transition active:scale-95 ${placed[s] ? 'bg-green-50 ring-green-300' : picked ? 'bg-stone-200 ring-violet-400 hover:ring-violet-500' : 'bg-stone-200 ring-stone-300'}`}
+          >
+            <span style={placed[s] ? {} : { filter: 'brightness(0) opacity(0.8)' }}>{s}</span>
+          </button>
+        ))}
+      </div>
+      <Banner won={won} onReplay={() => { setPlaced({}); setPicked(null); setItems(shuffle(POOL).slice(0, 4)) }} />
     </div>
   )
 }
 
 // ── Miroir : reproduire le côté gauche sur le côté droit ─────────────────────
+const N = 4
+// Tirage du côté gauche : entre 3 et 10 cases pleines, sinon la grille vide
+// rendait l'activité impossible à gagner (et la grille pleine, trop longue).
+function drawLeft() {
+  let g
+  do { g = Array.from({ length: N * N }, () => Math.random() < 0.4) }
+  while (g.filter(Boolean).length < 3 || g.filter(Boolean).length > 10)
+  return g
+}
 function Mirror() {
   const { t, lang } = useLang()
-  const N = 4
-  const left = useMemo(() => Array.from({ length: N * N }, () => Math.random() < 0.4), [])
+  const [left, setLeft] = useState(drawLeft)
   const [right, setRight] = useState(() => Array(N * N).fill(false))
   // miroir horizontal : colonne c du gauche == colonne (N-1-c) du droit
   const target = useMemo(() => {
@@ -168,12 +188,12 @@ function Mirror() {
         <span className="text-3xl">🪞</span>
         <div className="grid gap-1 rounded-2xl bg-amber-50 p-2" style={{ gridTemplateColumns: `repeat(${N}, 1fr)` }}>
           {right.map((on, i) => (
-            <Cell key={i} on={on} onClick={() => { sfx.tap(); setRight((g) => { const n = [...g]; n[i] = !n[i]; return n }) }} />
+            <Cell key={i} on={on} onClick={() => { if (won && right.some(Boolean)) return; sfx.tap(); setRight((g) => { const n = [...g]; n[i] = !n[i]; return n }) }} />
           ))}
         </div>
       </div>
       <p className="text-center text-stone-500">{t({ fr: 'Colorie le côté droit comme dans un miroir.', en: 'Colour the right side like a mirror.' })}</p>
-      <Banner won={won && right.some(Boolean)} onReplay={() => setRight(Array(N * N).fill(false))} />
+      <Banner won={won && right.some(Boolean)} onReplay={() => { setRight(Array(N * N).fill(false)); setLeft(drawLeft()) }} />
     </div>
   )
 }
@@ -210,7 +230,7 @@ function Order() {
               key={s}
               onClick={() => !used && tap(s)}
               className={`flex items-end justify-center rounded-2xl bg-white shadow ring-2 transition active:scale-90 ${used ? 'opacity-20' : wrong === s ? 'ring-rose-400' : 'ring-amber-200 hover:bg-amber-50'}`}
-              style={{ width: 40 + s * 14, height: 40 + s * 14 }}
+              style={{ width: 44 + s * 14, height: 44 + s * 14 }}
             ><span style={{ fontSize: 16 + s * 7 }}>⭐</span></button>
           )
         })}
