@@ -153,8 +153,8 @@ export const GLOBAL_GUIDE = [
           [ { fr: 'Feuilles quadrillées grosses cases', en: 'Big-square grid sheets' }, { fr: 'Cases de 3 cm, 6×6 au plus.', en: '3 cm squares, 6×6 at most.' }, { fr: 'ch8-s3:b, ch5-s3', en: 'ch8-s3:b, ch5-s3' } ],
         ] },
       { type: 'p', text: {
-        fr: 'Kit mTiny (ch7) : chargez le robot la veille, déroulez le tapis sur une table basse, gardez le crayon-contrôleur dans votre main. Faites d’abord la version écran (le panda), puis la même suite avec le vrai robot.',
-        en: 'mTiny kit (ch7): charge the robot the day before, unroll the map on a low table, keep the tap pencil in your hand. Do the screen version first (the panda), then the same sequence with the real robot.' } },
+        fr: 'Kit mTiny (ch7) : chargez le robot la veille, déroulez le tapis sur une table basse. Gardez le crayon-contrôleur dans votre main. Faites d’abord la version écran (le panda), puis la même suite avec le vrai robot.',
+        en: 'mTiny kit (ch7): charge the robot the day before, unroll the map on a low table. Keep the tap pencil in your hand. Do the screen version first (the panda), then the same sequence with the real robot.' } },
     ] },
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -182,9 +182,9 @@ export const GLOBAL_GUIDE = [
         { fr: 'La parole avant le geste : l’enfant dit ce qu’il va toucher, puis il touche. Sinon, on attend.', en: 'Words before the move: the child says what they will touch, then touches. Otherwise, we wait.' },
         { fr: 'Un doigt, toujours. Une main à plat déclenche plusieurs boutons et le chien part n’importe où.', en: 'One finger, always. A flat hand triggers several buttons and the dog goes anywhere.' },
         { fr: 'L’erreur s’appelle « bug » et se répare. Jamais de sanction, jamais de « non ». On dit : « bug ! qu’est-ce qu’on change ? »', en: 'A mistake is called a “bug” and gets fixed. Never a punishment, never a “no”. We say: “bug! what do we change?”' },
-        { fr: '⏹ Stop est votre bouton : pendant que le chien ou le panda avance, il arrête tout et garde le programme.', en: '⏹ Stop is your button: while the dog or the panda is moving, it halts everything and keeps the program.' },
+        { fr: '⏹ Stop est votre bouton : il arrête le chien ou le panda en route, et garde le programme.', en: '⏹ Stop is your button: it halts the dog or the panda mid-run, and keeps the program.' },
         { fr: 'On ferme une activité par la croix seulement, jamais en touchant partout. Le ✓ de progression est déjà posé.', en: 'Close an activity with the cross only, never by tapping around. The ✓ progress is already saved.' },
-        { fr: 'Ne lisez pas à la place de l’enfant : appuyez sur 🔊 et laissez la machine dire la consigne, deux fois si besoin.', en: 'Do not read instead of the child: press 🔊 and let the machine say the instruction, twice if needed.' },
+        { fr: 'Ne lisez pas à la place de l’enfant. Appuyez sur 🔊 : la machine dit la consigne, deux fois si besoin.', en: 'Do not read instead of the child. Press 🔊: the machine says the instruction, twice if needed.' },
         { fr: 'Chuchotez la réponse au copilote, pas au pilote. Le copilote la transmet : c’est lui qui apprend à dire.', en: 'Whisper the answer to the co-pilot, not the pilot. The co-pilot passes it on: they are learning to say it.' },
       ] },
       { type: 'tip', text: {
@@ -285,7 +285,7 @@ export const GLOBAL_GUIDE = [
       { type: 'table',
         head: [ { fr: 'Situation', en: 'Situation' }, { fr: 'Que faire', en: 'What to do' } ],
         rows: [
-          [ { fr: 'Pas de voix au 🔊', en: 'No voice from 🔊' }, { fr: 'Aucune voix installée : Paramètres Windows › Heure et langue › Voix › Ajouter des voix › Français, puis rouvrir le site. En attendant, le copilote lit la consigne avec vous.', en: 'No voice installed: Windows Settings › Time & language › Speech › Add voices, then reopen the site. Meanwhile, the co-pilot says the instruction with you.' } ],
+          [ { fr: 'Pas de voix au 🔊', en: 'No voice from 🔊' }, { fr: 'Aucune voix installée. Paramètres Windows › Heure et langue › Voix › Ajouter des voix › Français, puis rouvrir le site. En attendant, le copilote dit la consigne avec vous.', en: 'No voice installed. Windows Settings › Time & language › Speech › Add voices › French, then reopen the site. Meanwhile, the co-pilot says the instruction with you.' } ],
           [ { fr: 'Pas de son du tout', en: 'No sound at all' }, { fr: 'Vérifiez que 🔇 n’est pas activé dans l’en-tête, puis le volume du TBI. Les ordinateurs font « bip » à la place.', en: 'Check that 🔇 is not on in the header, then the whiteboard volume. The computers go “beep” instead.' } ],
           [ { fr: 'TBI en panne', en: 'Whiteboard down' }, { fr: 'Chaque séance a sa version débranchée (fiche ch8 liée). Sortez les cartes flèches et le quadrillage : la séance a lieu.', en: 'Every session has an unplugged version (linked ch8 sheet). Bring out the arrow cards and the grid: the session goes ahead.' } ],
           [ { fr: 'Le clic droit ne marche pas au doigt', en: 'Right click does not work by finger' }, { fr: 'Sur le TBI, le clic droit est un appui long : on garde le doigt posé une seconde.', en: 'On the whiteboard, right click is a long press: keep your finger down for one second.' } ],
@@ -312,15 +312,15 @@ export const GLOBAL_GUIDE = [
         { fr: 'Ce que l’enfant fait à l’écran, il peut le refaire au sol. Si ce n’est pas le cas, on ralentit.', en: 'What the child does on screen, they can redo on the floor. If not, we slow down.' },
       ] },
       { type: 'ol', items: [
-        { fr: 'Le robot et le maître (ch8-s1:a) : un parent est le robot, l’enfant donne un ordre à la fois pour l’amener au canapé.', en: 'The robot and the master (ch8-s1:a): a parent is the robot, the child gives one order at a time to reach the sofa.' },
+        { fr: 'Le robot et le maître (ch8-s1:a) : un parent est le robot, l’enfant donne un ordre à la fois.', en: 'The robot and the master (ch8-s1:a): a parent is the robot, the child gives one order at a time.' },
         { fr: 'L’algorithme du matin (ch8-s4:c) : quatre images à remettre dans l’ordre, réveil, habits, petit-déjeuner, dents.', en: 'The morning algorithm (ch8-s4:c): four pictures to put in order, wake up, clothes, breakfast, teeth.' },
         { fr: 'Jacques a dit (ch8-s3:a) : on ne bouge que si la condition est dite. Cinq minutes avant le bain.', en: 'Simon says (ch8-s3:a): move only if the condition is spoken. Five minutes before bath time.' },
       ] },
       { type: 'p', text: {
-        fr: 'Modèle de mot de rentrée (½ page). Chers parents, cette année votre enfant découvre le numérique et la robotique. Il apprendra à commander une machine avec un seul doigt, à donner des ordres dans le bon ordre, à trouver un « bug » et à le réparer. Nous utilisons un tableau tactile 12 minutes au plus par séance ; le reste se fait avec le corps, des cartes et un petit robot.',
-        en: 'Back-to-school note template (½ page). Dear parents, this year your child is discovering digital skills and robotics. They will learn to control a machine with one finger, to give orders in the right order, to find a “bug” and to fix it. We use a touch board for 12 minutes at most per session; the rest is done with the body, cards and a small robot.' } },
+        fr: 'Modèle de mot de rentrée (½ page). Chers parents, cette année votre enfant découvre le numérique et la robotique. Il apprendra à commander une machine avec un seul doigt et à donner des ordres dans le bon ordre. Il apprendra aussi à trouver un « bug » et à le réparer. Nous utilisons le tableau tactile 12 minutes au plus par séance. Le reste se fait avec le corps, des cartes et un petit robot.',
+        en: 'Back-to-school note template (½ page). Dear parents, this year your child is discovering digital skills and robotics. They will learn to control a machine with one finger and to give orders in the right order. They will also learn to find a “bug” and to fix it. We use the touch board for 12 minutes at most per session. The rest is done with the body, cards and a small robot.' } },
       { type: 'p', text: {
-        fr: 'Aucune photo de votre enfant n’est mise en ligne. À la maison, jouez avec lui au robot et au maître, à l’algorithme du matin ou à Jacques a dit : cinq minutes suffisent. Les mots à connaître : ordre, programme, bug, robot. Merci de votre confiance. La maîtresse.',
-        en: 'No photo of your child is put online. At home, play the robot and the master, the morning algorithm or Simon says with them: five minutes are enough. Words to know: order, program, bug, robot. Thank you for your trust. The teacher.' } },
+        fr: 'Aucune photo de votre enfant n’est mise en ligne. À la maison, jouez au robot et au maître, à l’algorithme du matin ou à Jacques a dit. Cinq minutes suffisent. Les mots à connaître : ordre, programme, bug, robot. Merci de votre confiance. La maîtresse.',
+        en: 'No photo of your child is put online. At home, play the robot and the master, the morning algorithm or Simon says. Five minutes are enough. Words to know: order, program, bug, robot. Thank you for your trust. The teacher.' } },
     ] },
 ]
