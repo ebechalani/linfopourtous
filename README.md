@@ -1,8 +1,11 @@
-# Linfopourtous · Maternelle (KG, 3–5 ans)
+# Linfopourtous · Carmélites · Maternelle (KG, 3–5 ans)
 
 Site **compagnon de classe** interactif pour aider le prof à donner le cours de
-numérique en maternelle. Bilingue **FR / EN**, pensé pour des **non-lecteurs** :
-gros boutons, emojis, consignes lues à voix haute (🔊), sons d'encouragement.
+numérique en maternelle aux Carmélites. Bilingue **FR / EN**, pensé pour des
+**non-lecteurs** : gros boutons, emojis, consignes lues à voix haute (🔊), sons
+d'encouragement.
+
+Créé par **Eddy Bachaalany**.
 
 D'après les manuels 2023 (7 chapitres) : *Je connais mon ordinateur, Dessins
 animés, J'utilise le clavier, Je dessine avec Paint, Je code avec un algorithme,
@@ -34,6 +37,19 @@ construit et publie le site automatiquement. URL en classe :
 
 Le premier déploiement active Pages tout seul. Si Pages reste désactivé,
 l'activer une fois dans **Settings → Pages → Source : GitHub Actions**.
+
+## En ligne (Vercel, projet « carmelites »)
+
+Le dépôt est prêt pour Vercel (`vercel.json` : Vite, `npm run build`, dossier
+`dist`). Une seule fois, depuis le tableau de bord Vercel :
+
+1. **Add New… → Project → Import** le dépôt GitHub `ebechalani/linfopourtous`.
+2. **Project Name** : `carmelites` (l'URL sera `https://carmelites.vercel.app`).
+3. Laisser les réglages détectés (Framework : Vite, Build : `npm run build`,
+   Output : `dist`) et cliquer **Deploy**.
+
+Ensuite chaque `git push` sur `main` redéploie automatiquement, comme pour
+GitHub Pages. Les deux adresses restent valables.
 
 ## Ce qui est jouable
 

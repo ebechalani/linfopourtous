@@ -6,7 +6,7 @@ const LangContext = createContext(null)
 // propres {fr,en}). Ajoute une clé ici quand tu ajoutes du texte d'UI.
 export const UI = {
   appTitle: { fr: 'Linfopourtous', en: 'Linfopourtous' },
-  appSubtitle: { fr: 'Maternelle · 3–5 ans', en: 'Kindergarten · ages 3–5' },
+  appSubtitle: { fr: 'Carmélites · Maternelle · 3–5 ans', en: 'Carmélites · Kindergarten · ages 3–5' },
   chapters: { fr: 'Chapitres', en: 'Chapters' },
   chapter: { fr: 'Chapitre', en: 'Chapter' },
   session: { fr: 'Séance', en: 'Session' },
@@ -35,7 +35,7 @@ export const UI = {
   exitFullscreen: { fr: 'Quitter le plein écran', en: 'Exit full screen' },
   next: { fr: 'Suivant', en: 'Next' },
   stop: { fr: 'Stop', en: 'Stop' },
-  pageTitle: { fr: 'Linfopourtous · Maternelle', en: 'Linfopourtous · Kindergarten' },
+  pageTitle: { fr: 'Linfopourtous · Carmélites · Maternelle', en: 'Linfopourtous · Carmélites · Kindergarten' },
   basedOn: { fr: 'D’après le manuel KG (2023) de', en: 'Based on the KG book (2023) by' },
   publishedBy: { fr: 'publié par', en: 'published by' },
 }
