@@ -45,6 +45,14 @@ export default function PaintStudio({ activity }) {
   const [color, setColor] = useState('#3b82f6')
   const [size, setSize] = useState(SIZES[1])
   const [canUndo, setCanUndo] = useState(false)
+  const [printing, setPrinting] = useState(false) // trace pour les parents
+
+  // Imprimer le dessin : on pose la classe .printable (CSS print d'index.css)
+  // sur le cadre de la toile, le temps de l'impression.
+  function print() {
+    setPrinting(true)
+    setTimeout(() => { window.print(); setPrinting(false) }, 60)
+  }
 
   // garde les valeurs courantes accessibles dans les handlers natifs
   const cur = useRef({ tool, color, size })
@@ -197,21 +205,28 @@ export default function PaintStudio({ activity }) {
 
       {/* Toile. `touch-none` empêche le défilement pendant le tracé (React attache
           les écouteurs touch en passif : un preventDefault n'y ferait rien). */}
-      <canvas
-        ref={canvasRef}
-        width={PW}
-        height={PH}
-        onMouseDown={down}
-        onMouseMove={move}
-        onMouseUp={up}
-        onMouseLeave={up}
-        onTouchStart={down}
-        onTouchMove={move}
-        onTouchEnd={up}
-        onContextMenu={(e) => e.preventDefault()}
-        className="w-full max-w-2xl touch-none rounded-2xl bg-white shadow-inner ring-4 ring-violet-200"
-        style={{ aspectRatio: `${W} / ${H}` }}
-      />
+      <div className={`flex w-full max-w-2xl flex-col items-center ${printing ? 'printable' : ''}`}>
+        {printing && (
+          <div className="mb-3 w-full text-center text-xl font-extrabold text-stone-800">
+            {activity?.emoji} {t(activity?.title)} · {t({ fr: 'Dessin de ______________', en: 'Drawing by ______________' })}
+          </div>
+        )}
+        <canvas
+          ref={canvasRef}
+          width={PW}
+          height={PH}
+          onMouseDown={down}
+          onMouseMove={move}
+          onMouseUp={up}
+          onMouseLeave={up}
+          onTouchStart={down}
+          onTouchMove={move}
+          onTouchEnd={up}
+          onContextMenu={(e) => e.preventDefault()}
+          className="w-full touch-none rounded-2xl bg-white shadow-inner ring-4 ring-violet-200"
+          style={{ aspectRatio: `${W} / ${H}` }}
+        />
+      </div>
 
       {/* Couleurs (48 px : un doigt d'enfant) */}
       <div className="flex flex-wrap justify-center gap-2">
@@ -262,6 +277,11 @@ export default function PaintStudio({ activity }) {
           onClick={clear}
           className="flex h-12 items-center gap-1 rounded-xl bg-rose-100 px-4 text-lg font-bold text-rose-600 shadow transition hover:bg-rose-200 active:scale-90"
         >🗑️ {t({ fr: 'Effacer', en: 'Clear' })}</button>
+        <button
+          onClick={print}
+          title={t({ fr: 'Imprimer le dessin (trace pour les parents)', en: 'Print the drawing (to take home)' })}
+          className="flex h-12 items-center gap-1 rounded-xl bg-stone-100 px-4 text-lg font-bold text-stone-700 shadow transition hover:bg-stone-200 active:scale-90"
+        >🖨️</button>
       </div>
     </div>
   )

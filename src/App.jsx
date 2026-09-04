@@ -1,8 +1,10 @@
 import { useCallback, useState } from 'react'
 import { LangProvider, useLang, useUI } from './i18n.jsx'
-import { CHAPTERS, findChapter } from './data/curriculum.js'
+import { TeacherProvider, useTeacher } from './teacher.jsx'
+import { CHAPTERS, findChapter, findActivity } from './data/curriculum.js'
 import { LEVELS, LEVEL_BY_ID, levelOf } from './data/levels.js'
 import { loadDone, saveDone, doneInChapter, totalInChapter } from './data/progress.js'
+import { conceptOf, tipFor, chapterGuide, CONCEPTS } from './data/guide/index.js'
 import LangToggle from './components/LangToggle.jsx'
 import MuteToggle from './components/MuteToggle.jsx'
 import FullscreenToggle from './components/FullscreenToggle.jsx'
@@ -10,12 +12,16 @@ import SpeakButton from './components/SpeakButton.jsx'
 import ActivityModal from './components/ActivityModal.jsx'
 import Celebration from './components/Celebration.jsx'
 import VoiceNotice from './components/VoiceNotice.jsx'
+import TeacherDrawer from './components/TeacherDrawer.jsx'
+import ChapterGuideCard from './components/ChapterGuideCard.jsx'
+import GuideView from './components/GuideView.jsx'
 import { sfx } from './sound.js'
 
-function Header({ onHome }) {
+function Header({ onHome, onGuide }) {
   const ui = useUI()
+  const { teacher, toggle } = useTeacher()
   return (
-    <header className="sticky top-0 z-30 flex items-center gap-3 bg-white/70 px-4 py-3 backdrop-blur-md sm:px-8">
+    <header className="no-print sticky top-0 z-30 flex items-center gap-2 bg-white/70 px-4 py-3 backdrop-blur-md sm:gap-3 sm:px-8">
       <button onClick={onHome} className="flex items-center gap-2 text-left active:scale-95">
         <span className="text-3xl">🎒</span>
         <div className="leading-tight">
@@ -24,6 +30,17 @@ function Header({ onHome }) {
         </div>
       </button>
       <div className="flex-1" />
+      {teacher && (
+        <button onClick={onGuide} title={ui('guide')} aria-label={ui('guide')}
+          className="flex h-11 items-center gap-1 rounded-full bg-amber-100 px-3 text-sm font-bold text-amber-800 shadow ring-2 ring-amber-200 transition hover:bg-amber-200 active:scale-95">
+          📖 <span className="hidden sm:inline">{ui('guide')}</span>
+        </button>
+      )}
+      {/* Mode prof : petit, gris quand éteint ; ambre quand allumé */}
+      <button onClick={toggle} title={teacher ? ui('teacherOn') : ui('teacherOff')} aria-label={ui('teacherMode')} aria-pressed={teacher}
+        className={`flex h-11 w-11 items-center justify-center rounded-full text-xl shadow ring-2 transition active:scale-95 ${teacher ? 'bg-amber-200 ring-amber-300' : 'bg-white/60 opacity-70 ring-stone-200 grayscale hover:opacity-100'}`}>
+        👩‍🏫
+      </button>
       <FullscreenToggle />
       <MuteToggle />
       <LangToggle />
@@ -31,9 +48,22 @@ function Header({ onHome }) {
   )
 }
 
-function Home({ onOpenChapter, done }) {
+// Petit chip de notion (mode prof) : « ➡️ Séquence »
+function ConceptChip({ sessionId, small = false }) {
+  const { t } = useLang()
+  const c = conceptOf(sessionId)
+  if (!c) return null
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full font-bold text-white ${small ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-1 text-xs'}`} style={{ backgroundColor: c.color }} title={t(c.child)}>
+      {c.emoji} {t(c.prof)}
+    </span>
+  )
+}
+
+function Home({ onOpenChapter, onGuide, done }) {
   const { t } = useLang()
   const ui = useUI()
+  const { teacher } = useTeacher()
   return (
     <main className="mx-auto max-w-5xl px-4 py-8 sm:px-8">
       <h1 className="mb-6 text-center text-3xl font-extrabold text-stone-700">
@@ -44,6 +74,7 @@ function Home({ onOpenChapter, done }) {
           const total = totalInChapter(ch)
           const d = doneInChapter(done, ch.id)
           const complete = d >= total
+          const cg = teacher ? chapterGuide(ch.id) : null
           return (
             <button
               key={ch.id}
@@ -68,9 +99,25 @@ function Home({ onOpenChapter, done }) {
               <div className="text-sm text-stone-500">
                 {ch.sessions.length} {ui('sessions')}
               </div>
+              {cg && (
+                <div className="flex flex-wrap gap-1">
+                  {(cg.concepts || []).map((k) => CONCEPTS[k] && (
+                    <span key={k} className="rounded-full px-2 py-0.5 text-[11px] font-bold text-white" style={{ backgroundColor: CONCEPTS[k].color }}>{CONCEPTS[k].emoji} {t(CONCEPTS[k].prof)}</span>
+                  ))}
+                </div>
+              )}
             </button>
           )
         })}
+        {teacher && (
+          <button onClick={onGuide}
+            className="flex flex-col items-start gap-3 rounded-3xl bg-amber-50 p-6 text-left shadow-lg ring-2 ring-amber-200 transition hover:-translate-y-1 hover:shadow-xl active:scale-95">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 text-4xl shadow-inner">📖</div>
+            <div className="text-xs font-bold uppercase tracking-wide text-amber-700">👩‍🏫 {ui('teacherMode')}</div>
+            <div className="text-xl font-extrabold text-stone-800">{ui('guide')}</div>
+            <div className="text-sm text-stone-600">{ui('guideIntro')}</div>
+          </button>
+        )}
       </div>
     </main>
   )
@@ -124,11 +171,11 @@ function LevelFilter({ value, onChange, available }) {
   )
 }
 
-function ChapterView({ chapterId, onOpenActivity, done, markDone, onClearChapter }) {
+function ChapterView({ chapterId, onOpenActivity, onOpenTeacher, onOpenById, done, markDone, onClearChapter }) {
   const { t } = useLang()
   const ui = useUI()
+  const { teacher } = useTeacher()
   const ch = findChapter(chapterId)
-  const [teacherFor, setTeacherFor] = useState(null)
   const [level, setLevel] = useState('all')
 
   // niveaux à afficher selon le filtre
@@ -175,6 +222,8 @@ function ChapterView({ chapterId, onOpenActivity, done, markDone, onClearChapter
         </div>
       </div>
 
+      {teacher && <ChapterGuideCard chapter={ch} onOpenById={onOpenById} />}
+
       <LevelFilter value={level} onChange={setLevel} available={available} />
 
       {nothingShown && (
@@ -193,7 +242,7 @@ function ChapterView({ chapterId, onOpenActivity, done, markDone, onClearChapter
 
           return (
             <section key={s.id} className="rounded-3xl bg-white p-5 shadow-md sm:p-6">
-              <div className="mb-3 flex items-center gap-2">
+              <div className="mb-3 flex flex-wrap items-center gap-2">
                 <span
                   className="flex h-9 w-9 items-center justify-center rounded-full text-base font-extrabold text-white"
                   style={{ backgroundColor: ch.color }}
@@ -201,26 +250,14 @@ function ChapterView({ chapterId, onOpenActivity, done, markDone, onClearChapter
                   {i + 1}
                 </span>
                 <h2 className="flex-1 text-xl font-extrabold text-stone-800">{t(s.title)}</h2>
+                {teacher && <ConceptChip sessionId={s.id} />}
                 <button
-                  onClick={() => setTeacherFor(teacherFor === s.id ? null : s.id)}
-                  className="rounded-full bg-stone-100 px-3 py-1.5 text-sm font-bold text-stone-600 transition hover:bg-stone-200 active:scale-95"
+                  onClick={() => onOpenTeacher(s)}
+                  className="rounded-full bg-stone-100 px-3 py-1.5 text-sm font-bold text-stone-600 transition hover:bg-amber-100 active:scale-95"
                 >
                   👩‍🏫 {ui('teacherView')}
                 </button>
               </div>
-
-              {teacherFor === s.id && (
-                <div className="mb-4 rounded-2xl bg-amber-50 p-4 ring-2 ring-amber-200">
-                  <div className="mb-1 text-sm font-bold uppercase tracking-wide text-amber-700">
-                    {ui('objectives')}
-                  </div>
-                  <ul className="list-disc space-y-1 pl-5 text-stone-700">
-                    {t(s.objectives).map((o, k) => (
-                      <li key={k}>{o}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
 
               {/* un bloc par niveau présent dans la séance */}
               <div className="flex flex-col gap-4">
@@ -286,16 +323,21 @@ function nextActivity(chapter, sessionId, activityId) {
 function Shell() {
   const ui = useUI()
   const { t } = useLang()
+  const { teacher } = useTeacher()
   const [chapterId, setChapterId] = useState(null)
+  const [view, setView] = useState('home') // home | chapter | guide
   // { a: activité, sid: id de séance } — la séance sert au bouton Suivant
   const [open, setOpen] = useState(null)
+  const [drawer, setDrawer] = useState(null) // séance ouverte dans le tiroir prof
   const [done, setDone] = useState(() => loadDone())
   const [celebrate, setCelebrate] = useState(null) // chapitre qui vient d'être fini
   // Référence stable : sinon l'effet de Celebration se relançait (fanfare +
   // minuterie) à chaque re-rendu du Shell.
   const endCelebrate = useCallback(() => setCelebrate(null), [])
   const closeActivity = useCallback(() => setOpen(null), [])
-  const openActivity = useCallback((a, sid) => setOpen({ a, sid }), [])
+  const closeDrawer = useCallback(() => setDrawer(null), [])
+  // Ouvrir une activité ferme le tiroir prof (il couvrirait la fenêtre de jeu).
+  const openActivity = useCallback((a, sid) => { setDrawer(null); setOpen({ a, sid }) }, [])
 
   function markDone(key) {
     if (done.has(key)) return
@@ -316,22 +358,36 @@ function Shell() {
     saveDone(next)
     setDone(next)
   }
+  // Liens croisés (fiche débranchée → jeu, tiroir → fiche) : ouvre une activité
+  // par sa clé « session:activité », dans son chapitre.
+  const openById = useCallback((key) => {
+    const ref = findActivity(key)
+    if (!ref) return
+    setChapterId(ref.chapter.id); setView('chapter')
+    markDone(key)
+    openActivity(ref.activity, ref.session.id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [done])
+
+  function goHome() { setChapterId(null); setView('home'); setOpen(null); setDrawer(null) }
+  function openChapter(id) { setChapterId(id); setView('chapter'); setDrawer(null) }
 
   const chapter = chapterId ? findChapter(chapterId) : null
   const next = open ? nextActivity(chapter, open.sid, open.a.id) : null
+  const tip = teacher && open ? tipFor(open.sid, open.a.id) : null
 
   return (
     <div className="min-h-full pb-16">
-      <Header onHome={() => { setChapterId(null); setOpen(null) }} />
+      <Header onHome={goHome} onGuide={() => { setView('guide'); setDrawer(null) }} />
 
-      <div className="px-4 pt-4 sm:px-8">
+      <div className="no-print px-4 pt-4 sm:px-8">
         <VoiceNotice />
       </div>
 
-      {chapterId && (
-        <div className="mx-auto max-w-4xl px-4 pt-4 sm:px-8">
+      {view === 'chapter' && chapterId && (
+        <div className="no-print mx-auto max-w-4xl px-4 pt-4 sm:px-8">
           <button
-            onClick={() => setChapterId(null)}
+            onClick={goHome}
             className="rounded-full bg-white px-4 py-2 text-sm font-bold text-stone-600 shadow ring-2 ring-stone-100 transition hover:bg-stone-50 active:scale-95"
           >
             ← {ui('home')}
@@ -339,10 +395,16 @@ function Shell() {
         </div>
       )}
 
-      {chapterId ? (
-        <ChapterView chapterId={chapterId} onOpenActivity={openActivity} done={done} markDone={markDone} onClearChapter={clearChapter} />
+      {view === 'guide' ? (
+        <GuideView onBack={goHome} />
+      ) : view === 'chapter' && chapterId ? (
+        <ChapterView chapterId={chapterId} onOpenActivity={openActivity} onOpenTeacher={setDrawer} onOpenById={openById} done={done} markDone={markDone} onClearChapter={clearChapter} />
       ) : (
-        <Home onOpenChapter={setChapterId} done={done} />
+        <Home onOpenChapter={openChapter} onGuide={() => setView('guide')} done={done} />
+      )}
+
+      {drawer && chapter && (
+        <TeacherDrawer chapter={chapter} session={drawer} onClose={closeDrawer} onOpenActivity={openActivity} onOpenById={openById} />
       )}
 
       {open && (
@@ -351,6 +413,8 @@ function Shell() {
           onClose={closeActivity}
           next={next ? next.a : null}
           onNext={() => { if (next) { markDone(`${next.sid}:${next.a.id}`); setOpen(next) } }}
+          tip={tip}
+          onOpenById={openById}
         />
       )}
 
@@ -361,7 +425,7 @@ function Shell() {
         />
       )}
 
-      <footer className="mt-10 px-4 pb-6 text-center text-xs leading-relaxed text-stone-400">
+      <footer className="no-print mt-10 px-4 pb-6 text-center text-xs leading-relaxed text-stone-400">
         <div>© {new Date().getFullYear()} · {ui('siteBy')} <span className="font-bold text-violet-500">Eddy Bachaalany</span> · <span className="font-semibold text-stone-500">Carmélites</span></div>
       </footer>
     </div>
@@ -371,7 +435,9 @@ function Shell() {
 export default function App() {
   return (
     <LangProvider>
-      <Shell />
+      <TeacherProvider>
+        <Shell />
+      </TeacherProvider>
     </LangProvider>
   )
 }

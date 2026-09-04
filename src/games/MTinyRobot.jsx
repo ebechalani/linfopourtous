@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLang, useUI } from '../i18n.jsx'
 import { sfx, speak } from '../sound.js'
 
@@ -49,13 +49,19 @@ const starsFor = (cards, par) => (cards <= par ? 3 : cards <= par + 2 ? 2 : 1)
 export default function MTinyRobot({ config = {} }) {
   const { t, lang } = useLang()
   const ui = useUI()
-  const level = LEVELS[config.level] || LEVELS[1]
+  // Tapis numéroté, ou tapis « objet » décrit dans curriculum.js (comme DogGrid)
+  const level = typeof config.level === 'object'
+    ? { walls: [], dir: 0, ...config.level }
+    : (LEVELS[config.level] || LEVELS[1])
   const tapMode = config.mode === 'tap' // Novice : un seul bouton « Avancer »
   const directMode = config.mode === 'direct' // chaque carte agit tout de suite
   const par = level.par || 6 // cartes de la meilleure solution (défi/étoiles)
   const goalGlyph = config.goal || '🎁'
+  // Programme pré-rempli « avec un bug » (débogage), rechargé par Recommencer.
+  const preset = useMemo(() => (Array.isArray(config.preset) ? config.preset.filter((k) => CARDS[k]) : []), [config.preset])
+  const debug = preset.length > 0
 
-  const [program, setProgram] = useState([])
+  const [program, setProgram] = useState(preset)
   const [pos, setPos] = useState(level.start)
   const [dir, setDir] = useState(level.dir)
   const [running, setRunning] = useState(false)
@@ -77,13 +83,13 @@ export default function MTinyRobot({ config = {} }) {
     reset()
     return () => { clearInterval(timer.current); clearTimeout(blockTimer.current) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config.level, config.mode])
+  }, [config.level, config.mode, preset])
 
   function reset() {
     clearInterval(timer.current)
     posRef.current = level.start
     dirRef.current = level.dir
-    setProgram([]); setPos(level.start); setDir(level.dir); setRunning(false); setStatus('idle'); setRepeat(1)
+    setProgram(preset); setPos(level.start); setDir(level.dir); setRunning(false); setStatus('idle'); setRepeat(1)
   }
   // Stop du prof pendant l'exécution : on arrête le robot, on GARDE les cartes.
   function stop() {
@@ -205,8 +211,9 @@ export default function MTinyRobot({ config = {} }) {
       <div className="min-h-[2.5rem] text-center text-lg font-bold" aria-live="polite">
         {status === 'win' && (
           <div className="text-green-600">
-            {t({ fr: 'Bravo ! 🎉', en: 'Well done! 🎉' })}{!tapMode && !directMode && program.length > 0 && <> {'⭐'.repeat(starsFor(program.length, par))}</>}
-            {!tapMode && !directMode && program.length > 0 && (
+            {t({ fr: 'Bravo ! 🎉', en: 'Well done! 🎉' })}{!tapMode && !directMode && !debug && program.length > 0 && <> {'⭐'.repeat(starsFor(program.length, par))}</>}
+            {debug && <> 🐛✅ {t({ fr: 'Bug réparé !', en: 'Bug fixed!' })}</>}
+            {!tapMode && !directMode && !debug && program.length > 0 && (
               <div className="text-xs font-bold text-stone-500">
                 {program.length} {t({ fr: program.length > 1 ? 'cartes' : 'carte', en: 'cards' })}{repeat > 1 ? ` × ${repeat}` : ''}
                 {program.length > par ? ` · ${t({ fr: 'essaie avec moins !', en: 'try with fewer!' })}` : ''}
@@ -221,7 +228,8 @@ export default function MTinyRobot({ config = {} }) {
                 ? t({ fr: 'Plus de place ! Enlève une carte.', en: 'No more room! Remove a card.' })
                 : t({ fr: 'Le robot ne peut pas aller par là !', en: 'The robot can’t go that way!' })}</span>
             : <span className="text-stone-500">{
-                tapMode ? t({ fr: 'Touche pour avancer', en: 'Tap to move forward' })
+                debug ? <>🐛 {t({ fr: 'Trouve le bug ! Une carte se trompe.', en: 'Find the bug! One card is wrong.' })}</>
+                  : tapMode ? t({ fr: 'Touche pour avancer', en: 'Tap to move forward' })
                   : directMode ? t({ fr: 'Appuie sur une carte : le robot bouge tout de suite', en: 'Press a card: the robot moves right away' })
                     : t({ fr: 'Range les cartes puis appuie sur Go', en: 'Line up the cards then press Go' })
               }</span>

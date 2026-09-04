@@ -59,8 +59,12 @@ export default function DogGrid({ config = {} }) {
   const direct = config.mode === 'direct'
   const par = level.par || 6 // flèches de la meilleure solution (défi/étoiles)
   const footprints = useMemo(() => (config.hint ? hintPath(level.start, level.goal) : []), [config.hint, level])
+  // Programme pré-rempli « avec un bug » (débogage) : l'enfant lit, prédit,
+  // retire la flèche fautive et la remplace. Recommencer recharge ce programme.
+  const preset = useMemo(() => (Array.isArray(config.preset) ? config.preset.filter((k) => MOVES[k]) : []), [config.preset])
+  const debug = preset.length > 0
 
-  const [program, setProgram] = useState([])
+  const [program, setProgram] = useState(preset)
   const [pos, setPos] = useState(level.start)
   const [running, setRunning] = useState(false)
   const [status, setStatus] = useState('idle') // idle | win | fail
@@ -79,12 +83,12 @@ export default function DogGrid({ config = {} }) {
     reset()
     return () => { clearInterval(timer.current); clearTimeout(blockTimer.current) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config.level, config.mode])
+  }, [config.level, config.mode, preset])
 
   function reset() {
     clearInterval(timer.current)
     posRef.current = level.start
-    setProgram([])
+    setProgram(preset)
     setPos(level.start)
     setRunning(false)
     setStatus('idle')
@@ -204,8 +208,9 @@ export default function DogGrid({ config = {} }) {
       <div className="min-h-[2.5rem] text-center font-bold" aria-live="polite">
         {status === 'win' && (
           <div className="text-xl text-green-600">
-            {ui('win')}{!direct && program.length > 0 && <> {'⭐'.repeat(starsFor(program.length, par))}</>}
-            {!direct && program.length > 0 && (
+            {ui('win')}{!direct && !debug && program.length > 0 && <> {'⭐'.repeat(starsFor(program.length, par))}</>}
+            {debug && <> 🐛✅ {t({ fr: 'Bug réparé !', en: 'Bug fixed!' })}</>}
+            {!direct && !debug && program.length > 0 && (
               <div className="text-xs font-bold text-stone-500">
                 {program.length} {t({ fr: program.length > 1 ? 'flèches' : 'flèche', en: 'arrows' })}{repeat > 1 ? ` × ${repeat}` : ''}
                 {program.length > par ? ` · ${t({ fr: 'essaie avec moins !', en: 'try with fewer!' })}` : ''}
@@ -219,7 +224,10 @@ export default function DogGrid({ config = {} }) {
             ? <span className="text-xl text-rose-500">🚫 {program.length >= MAX_MOVES && !direct
                 ? t({ fr: 'Plus de place ! Enlève une flèche.', en: 'No more room! Remove an arrow.' })
                 : t({ fr: 'On ne peut pas aller par là !', en: 'Can’t go that way!' })}</span>
-            : <span className="text-xl text-stone-500">{direct ? t({ fr: 'Appuie sur une flèche', en: 'Press an arrow' }) : ui('buildProgram')}</span>
+            : <span className="text-xl text-stone-500">{
+                debug ? <>🐛 {t({ fr: 'Trouve le bug ! Une flèche se trompe.', en: 'Find the bug! One arrow is wrong.' })}</>
+                  : direct ? t({ fr: 'Appuie sur une flèche', en: 'Press an arrow' }) : ui('buildProgram')
+              }</span>
         )}
         {running && <span className="text-xl text-violet-500">🐾 …</span>}
       </div>

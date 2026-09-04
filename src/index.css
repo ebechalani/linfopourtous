@@ -51,8 +51,18 @@ button {
   }
 }
 
-/* Impression : n'imprimer que la fiche débranchée (.printable), proprement. */
+/* Impression : n'imprimer que l'élément .printable (fiche débranchée, fiche de
+   séance, guide, cartes, dessin), proprement, sur fond blanc. */
+@page {
+  margin: 12mm;
+}
 @media print {
+  html,
+  body,
+  #root {
+    height: auto;
+    overflow: visible;
+  }
   body {
     background: #fff;
   }
@@ -68,7 +78,19 @@ button {
     left: 0;
     top: 0;
     width: 100%;
-    padding: 1.5rem;
+    height: auto;
+    max-width: none;
+    overflow: visible;
+    padding: 1rem;
+    box-shadow: none;
+    background: #fff;
+  }
+  .printable details > summary {
+    display: none;
+  }
+  .print-block {
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
   .no-print {
     display: none !important;
