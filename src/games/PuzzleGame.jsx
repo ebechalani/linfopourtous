@@ -24,28 +24,33 @@ function Banner({ won, onReplay }) {
 
 const shuffle = (a) => { const r = [...a]; for (let i = r.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[r[i], r[j]] = [r[j], r[i]] } return r }
 
-export default function PuzzleGame({ variant = 'sequence' }) {
+// `config` (= activity.pz dans curriculum.js) : { patterns: [[…]], n: 3|4|5 }
+//   patterns : motifs de la suite à compléter (🌱 AB, 🌟 AAB, 🏆 ABB / ABC)
+//   n        : taille de la grille du miroir
+export default function PuzzleGame({ variant = 'sequence', config = {} }) {
   switch (variant) {
     case 'match':
     case 'tangram': return <Match />
-    case 'mirror': return <Mirror />
+    case 'mirror': return <Mirror n={config.n} />
     case 'order': return <Order />
     case 'sequence':
-    default: return <Sequence />
+    default: return <Sequence patterns={config.patterns} />
   }
 }
 
+const DEFAULT_PATTERNS = [
+  ['🍎', '🍌', '🍎', '🍌', '🍎', '🍌'],
+  ['🍓', '🍇', '🍓', '🍇', '🍓', '🍇'],
+  ['🔴', '🔵', '🔴', '🔵', '🔴', '🔵'],
+  ['⭐', '🌙', '⭐', '🌙', '⭐', '🌙'],
+  ['🍎', '🍎', '🍌', '🍎', '🍎', '🍌'],
+  ['🔴', '🔵', '🟢', '🔴', '🔵', '🟢'],
+]
+
 // ── Compléter une suite ──────────────────────────────────────────────────────
-function Sequence() {
+function Sequence({ patterns: custom }) {
   const { t, lang } = useLang()
-  const patterns = [
-    ['🍎', '🍌', '🍎', '🍌', '🍎', '🍌'],
-    ['🍓', '🍇', '🍓', '🍇', '🍓', '🍇'],
-    ['🔴', '🔵', '🔴', '🔵', '🔴', '🔵'],
-    ['⭐', '🌙', '⭐', '🌙', '⭐', '🌙'],
-    ['🍎', '🍎', '🍌', '🍎', '🍎', '🍌'],
-    ['🔴', '🔵', '🟢', '🔴', '🔵', '🟢'],
-  ]
+  const patterns = Array.isArray(custom) && custom.length ? custom : DEFAULT_PATTERNS
   const [round, setRound] = useState(() => patterns[Math.floor(Math.random() * patterns.length)])
   const hideAt = round.length - 1
   const answer = round[hideAt]
@@ -61,7 +66,7 @@ function Sequence() {
   function replay() {
     setWon(false)
     // un motif différent du précédent, sinon l'enfant croit que rien n'a changé
-    const others = patterns.filter((p) => p !== round)
+    const others = patterns.length > 1 ? patterns.filter((p) => p !== round) : patterns
     setRound(others[Math.floor(Math.random() * others.length)])
   }
 
@@ -145,18 +150,19 @@ function Match() {
 }
 
 // ── Miroir : reproduire le côté gauche sur le côté droit ─────────────────────
-const N = 4
-// Tirage du côté gauche : entre 3 et 10 cases pleines, sinon la grille vide
-// rendait l'activité impossible à gagner (et la grille pleine, trop longue).
-function drawLeft() {
+// Tirage du côté gauche : entre 3 et ~60 % de cases pleines, sinon la grille
+// vide rendait l'activité impossible à gagner (et la grille pleine, trop longue).
+function drawLeft(N) {
+  const min = Math.min(3, N), max = Math.max(min, Math.round(N * N * 0.6))
   let g
   do { g = Array.from({ length: N * N }, () => Math.random() < 0.4) }
-  while (g.filter(Boolean).length < 3 || g.filter(Boolean).length > 10)
+  while (g.filter(Boolean).length < min || g.filter(Boolean).length > max)
   return g
 }
-function Mirror() {
+function Mirror({ n }) {
   const { t, lang } = useLang()
-  const [left, setLeft] = useState(drawLeft)
+  const N = [3, 4, 5].includes(n) ? n : 4
+  const [left, setLeft] = useState(() => drawLeft(N))
   const [right, setRight] = useState(() => Array(N * N).fill(false))
   // miroir horizontal : colonne c du gauche == colonne (N-1-c) du droit
   const target = useMemo(() => {
@@ -175,7 +181,7 @@ function Mirror() {
     <button
       onClick={onClick}
       disabled={fixed}
-      className={`h-12 w-12 rounded-md transition active:scale-90 ${on ? 'bg-violet-500' : 'bg-white'} ${fixed ? '' : 'ring-2 ring-violet-200 hover:ring-violet-400'}`}
+      className={`${N === 5 ? 'h-10 w-10' : 'h-12 w-12'} rounded-md transition active:scale-90 ${on ? 'bg-violet-500' : 'bg-white'} ${fixed ? '' : 'ring-2 ring-violet-200 hover:ring-violet-400'}`}
     />
   )
 
@@ -193,7 +199,7 @@ function Mirror() {
         </div>
       </div>
       <p className="text-center text-stone-500">{t({ fr: 'Colorie le côté droit comme dans un miroir.', en: 'Colour the right side like a mirror.' })}</p>
-      <Banner won={won && right.some(Boolean)} onReplay={() => { setRight(Array(N * N).fill(false)); setLeft(drawLeft()) }} />
+      <Banner won={won && right.some(Boolean)} onReplay={() => { setRight(Array(N * N).fill(false)); setLeft(drawLeft(N)) }} />
     </div>
   )
 }

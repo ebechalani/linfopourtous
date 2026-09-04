@@ -1,10 +1,14 @@
-import { useLang } from '../i18n.jsx'
+import { useLang, useUI } from '../i18n.jsx'
+import { findActivity } from '../data/curriculum.js'
 
 // Fiche d'activité « débranchée » (sans écran) : un guide pour le prof.
-// Champs attendus sur l'activité : objective, materials[], steps[], duration, link.
-export default function UnpluggedCard({ activity }) {
+// Champs attendus sur l'activité : objective, materials[], steps[], duration,
+// link (texte) et linkId (clé « session:activité » du jeu écran lié).
+export default function UnpluggedCard({ activity, onOpenById }) {
   const { t } = useLang()
+  const ui = useUI()
   const a = activity
+  const linked = a.linkId ? findActivity(a.linkId) : null
 
   const Section = ({ icon, title, children }) => (
     <div className="rounded-2xl bg-stone-50 p-4 ring-1 ring-stone-200">
@@ -70,8 +74,14 @@ export default function UnpluggedCard({ activity }) {
       )}
 
       {a.link && (
-        <div className="rounded-2xl bg-sky-50 p-3 text-sm text-sky-700 ring-1 ring-sky-200">
-          🔗 {t({ fr: 'À relier avec l’écran : ', en: 'Connect with the screen: ' })}<span className="font-bold">{t(a.link)}</span>
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-sky-50 p-3 text-sm text-sky-700 ring-1 ring-sky-200">
+          <span className="flex-1">🔗 {t({ fr: 'À relier avec l’écran : ', en: 'Connect with the screen: ' })}<span className="font-bold">{t(a.link)}</span></span>
+          {linked && onOpenById && (
+            <button onClick={() => onOpenById(a.linkId)}
+              className="no-print rounded-full bg-sky-500 px-3 py-1.5 text-sm font-bold text-white shadow hover:bg-sky-600 active:scale-95">
+              ▶ {ui('openOnScreen')} : {linked.activity.emoji} {t(linked.activity.title)}
+            </button>
+          )}
         </div>
       )}
     </div>

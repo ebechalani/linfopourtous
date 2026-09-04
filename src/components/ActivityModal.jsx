@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLang, useUI } from '../i18n.jsx'
 import SpeakButton from './SpeakButton.jsx'
 import ComingSoon from './ComingSoon.jsx'
@@ -15,12 +15,15 @@ import PuzzleGame from '../games/PuzzleGame.jsx'
 import ScratchBlocks from '../games/ScratchBlocks.jsx'
 import { sfx } from '../sound.js'
 
-// `next` (optionnel) = { activity, label } : l'activité suivante de la séance,
-// pour enchaîner au tableau sans repasser par la liste.
-export default function ActivityModal({ activity, onClose, next, onNext }) {
+// `next` (optionnel) : l'activité suivante de la séance, pour enchaîner au
+// tableau sans repasser par la liste. `tip` (mode prof) : astuce d'une ligne,
+// cachée derrière un bouton 💡 pour ne pas polluer la projection.
+export default function ActivityModal({ activity, onClose, next, onNext, tip, onOpenById }) {
   const { t } = useLang()
   const ui = useUI()
   const closeRef = useRef(null)
+  const [showTip, setShowTip] = useState(false)
+  useEffect(() => { setShowTip(false) }, [activity])
 
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose()
@@ -53,6 +56,12 @@ export default function ActivityModal({ activity, onClose, next, onNext }) {
         <div className="mb-4 flex items-center gap-3">
           <span className="text-4xl">{activity.emoji}</span>
           <h2 className="flex-1 text-2xl font-extrabold text-stone-800">{title}</h2>
+          {tip && (
+            <button onClick={() => setShowTip((v) => !v)} aria-label={ui('tip')} aria-pressed={showTip} title={ui('tip')}
+              className={`no-print flex h-12 w-12 items-center justify-center rounded-full text-2xl shadow-md transition active:scale-95 ${showTip ? 'bg-amber-300' : 'bg-amber-100 hover:bg-amber-200'}`}>
+              💡
+            </button>
+          )}
           <SpeakButton text={`${title}. ${t(activity.desc)}`} />
           <button
             ref={closeRef}
@@ -65,11 +74,17 @@ export default function ActivityModal({ activity, onClose, next, onNext }) {
           </button>
         </div>
 
+        {tip && showTip && (
+          <div className="no-print mb-4 rounded-2xl bg-amber-50 px-4 py-2 text-sm leading-snug text-amber-900 ring-1 ring-amber-200">
+            👩‍🏫 {t(tip)}
+          </div>
+        )}
+
         {/* La clé force un composant neuf quand on enchaîne deux activités du
             même type (sinon l'état du jeu précédent resterait). */}
         <div key={`${activity.type}:${activity.id}:${t(activity.title)}`}>
           {activity.type === 'unplugged' ? (
-            <UnpluggedCard activity={activity} />
+            <UnpluggedCard activity={activity} onOpenById={onOpenById} />
           ) : activity.parts ? (
             <PartsCard parts={activity.parts} />
           ) : activity.type === 'mtiny' ? (
@@ -87,7 +102,7 @@ export default function ActivityModal({ activity, onClose, next, onNext }) {
           ) : activity.type === 'paint' ? (
             <PaintStudio activity={activity} />
           ) : activity.type === 'puzzle' ? (
-            <PuzzleGame variant={activity.variant} />
+            <PuzzleGame variant={activity.variant} config={activity.pz} />
           ) : activity.type === 'scratch' ? (
             <ScratchBlocks config={activity.sc} />
           ) : (
