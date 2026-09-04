@@ -363,12 +363,6 @@ function Shell() {
 
       <footer className="mt-10 px-4 pb-6 text-center text-xs leading-relaxed text-stone-400">
         <div>© {new Date().getFullYear()} · {ui('siteBy')} <span className="font-bold text-violet-500">Eddy Bachaalany</span> · <span className="font-semibold text-stone-500">Carmélites</span></div>
-        <div>
-          {ui('basedOn')} <span className="font-semibold text-stone-500">Wissam Daccache</span>, {ui('publishedBy')}{' '}
-          <a href="https://www.zero1.education" target="_blank" rel="noopener noreferrer" className="font-semibold text-stone-500 underline hover:text-violet-500">
-            Linfopourtous · zero1.education
-          </a>
-        </div>
       </footer>
     </div>
   )
