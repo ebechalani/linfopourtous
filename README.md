@@ -1,4 +1,4 @@
-# Linfopourtous · Carmélites · Maternelle (KG, 3–5 ans)
+# Numérique et Robotique · Carmélites · Maternelle (KG, 3–5 ans)
 
 Site **compagnon de classe** interactif pour aider le prof à donner le cours de
 numérique en maternelle aux Carmélites. Bilingue **FR / EN**, pensé pour des
